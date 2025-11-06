@@ -7,4 +7,4 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - GEMINI_API_KEY=AIzaSyDAOlNEmf0sTv2la4g0ek9jD5coHhtC1g0 # <-- IMPORTANT: Replace with your actual Gemini API key
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
