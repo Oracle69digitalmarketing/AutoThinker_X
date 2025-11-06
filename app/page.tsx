@@ -81,6 +81,27 @@ const MainPage = () => {
     setError(null);
     setResult(null);
 
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/generate_blueprint`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idea }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "An unknown error occurred.");
+      }
+
+      const data = await response.json();
+      setResult(data);
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+    } finally {
+      setLoading(false);
+    }
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     setResult(mockData);
@@ -91,6 +112,116 @@ const MainPage = () => {
     <main className="container mx-auto px-4 py-12">
       <Header />
       <div className="max-w-3xl mx-auto">
+        <form onSubmit={handleSubmit} className="bg-slate-800/60 p-6 rounded-xl shadow-2xl border border-slate-700">
+          <label htmlFor="business-idea" className="block text-lg font-medium text-gray-200 mb-2">
+            Enter Your Business Idea
+          </label>
+          <textarea
+            id="business-idea"
+            rows={4}
+            className="w-full p-4 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-200"
+            placeholder="e.g., A platform that uses AI to create personalized travel itineraries..."
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+          />
+          {error && <p className="text-red-400 mt-2">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-4 w-full flex items-center justify-center gap-2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-900/50 disabled:cursor-not-allowed transition-all"
+          >
+            {loading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <IconZap />
+                Generate Blueprint
+              </>
+            )}
+          </button>
+        </form>
+
+        {result && (
+          <div className="mt-12 animate-fade-in">
+            <h2 className="text-3xl font-bold text-center mb-8">Your Startup Blueprint</h2>
+            
+            {/* Business Name & Pitch */}
+            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
+              <h3 className="text-2xl font-semibold text-indigo-400">{result.name}</h3>
+              <p className="text-gray-300 mt-2">{result.pitch}</p>
+            </div>
+
+            {/* Core Details Grid */}
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700">
+                <h4 className="font-semibold text-lg mb-2 text-gray-200">Value Proposition</h4>
+                <p className="text-gray-300">{result.valueProposition}</p>
+              </div>
+              <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700">
+                <h4 className="font-semibold text-lg mb-2 text-gray-200">SWOT Analysis</h4>
+                <ul className="list-disc list-inside text-gray-300 space-y-1">
+                  <li><strong>Strengths:</strong> {result.swot.strengths}</li>
+                  <li><strong>Weaknesses:</strong> {result.swot.weaknesses}</li>
+                  <li><strong>Opportunities:</strong> {result.swot.opportunities}</li>
+                  <li><strong>Threats:</strong> {result.swot.threats}</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Marketing */}
+            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">Marketing & Funnel Strategy</h4>
+              <p className="text-gray-300 mb-2"><strong>Funnel:</strong> {result.marketing.funnel}</p>
+              <p className="text-gray-300 mb-2"><strong>Ad Strategy:</strong> {result.marketing.ads}</p>
+              <p className="text-gray-300"><strong>Lead Magnet:</strong> {result.marketing.leadMagnet}</p>
+            </div>
+
+            {/* Roadmap */}
+            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">3-Phase Product Roadmap</h4>
+              <div className="space-y-4">
+                {result.roadmap && result.roadmap.map((phase: any) => (
+                  <div key={phase.phase}>
+                    <h5 className="font-semibold text-indigo-400">{`Phase ${phase.phase}: ${phase.title}`}</h5>
+                    <p className="text-gray-300">{phase.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Execution Plan */}
+            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">5-Step Execution Plan</h4>
+              <div className="space-y-4">
+                {result.execution_plan && result.execution_plan.map((step: any) => (
+                  <div key={step.step}>
+                    <h5 className="font-semibold text-indigo-400">{`Step ${step.step}: ${step.title}`}</h5>
+                    <p className="text-gray-300">{step.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Export Options */}
+            <div className="text-center">
+                <h4 className="font-semibold text-lg mb-4 text-gray-200">Tools & Exports</h4>
+                <div className="flex justify-center gap-4">
+                    <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
+                        <IconLayout />
+                        Export Pitch Deck
+                    </button>
+                    <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
+                        <IconCode />
+                        Export MVP Code
+                    </button>
+                </div>
+            </div>
+
+          </div>
+        )}
         <IdeaForm
           idea={idea}
           setIdea={setIdea}
