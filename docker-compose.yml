@@ -1,19 +1,10 @@
 version: '2.3'
 
 services:
-  nim:
-    image: nvcr.io/nim/nvidia/llama-3.1-nemotron-nano-8b-v1:1.8.4
-    ports:
-      - "8000:8000"
-    runtime: nvidia
-
   autothinker-backend:
     build:
       context: ./autothinker-backend
     ports:
       - "8001:8001"
     environment:
-      - NIM_API_URL=http://nim:8000/v1/completions
-      - NIM_API_KEY=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
-    depends_on:
-      - nim
+      - GEMINI_API_KEY=AIzaSyDAOlNEmf0sTv2la4g0ek9jD5coHhtC1g0 # <-- IMPORTANT: Replace with your actual Gemini API key
