@@ -1,24 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-:root {
-  --background-start-rgb: 2, 6, 23;
-  --background-end-rgb: 15, 23, 42;
-  --foreground-rgb: 229, 231, 235;
-  --card-rgb: 30, 41, 59;
-  --accent-rgb: 99, 102, 241;
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-start-rgb))
-    )
-    rgb(var(--background-end-rgb));
-  min-height: 100vh;
+@layer base {
+  body {
+    @apply bg-slate-900 text-gray-200;
+    background: linear-gradient(to bottom, transparent, #020617) #0f172a;
+    min-height: 100vh;
+  }
 }
 
 @layer utilities {
@@ -35,5 +22,50 @@ body {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  .card-base {
+    @apply bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 transition-all duration-300;
+  }
+
+  .card-glow {
+    @apply relative bg-slate-800/60 rounded-xl shadow-lg border border-slate-700 overflow-hidden;
+  }
+
+  .card-glow::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      transparent,
+      rgba(139, 92, 246, 0.4),
+      transparent 30%
+    );
+    animation: rotate 4s linear infinite;
+  }
+
+  .card-glow > * {
+    @apply relative z-10;
+  }
+
+  @keyframes rotate {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .btn {
+    @apply flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-900/50 shadow-[0_0_15px_rgba(99,102,241,0.5)];
+  }
+
+  .btn-secondary {
+    @apply bg-slate-700 text-white hover:bg-slate-600;
   }
 }
