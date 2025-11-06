@@ -137,7 +137,7 @@ def generate_blueprint(req: IdeaRequest):
         {{
           "name": "Startup Name",
           "pitch": "A concise one-sentence pitch for the startup.",
-          "valueProposition": "The unique value proposition.",
+          "value_proposition": "The unique value proposition.",
           "swot": {{
             "strengths": "Key strengths.",
             "weaknesses": "Key weaknesses.",
@@ -147,7 +147,7 @@ def generate_blueprint(req: IdeaRequest):
           "marketing": {{
             "funnel": "A high-level marketing funnel strategy.",
             "ads": "A specific advertising channel or strategy.",
-            "leadMagnet": "An idea for a lead magnet."
+            "lead_magnet": "An idea for a lead magnet."
           }},
           "roadmap": [
             {{ "phase": 1, "title": "Phase 1 Title", "description": "Description of what will be achieved in phase 1." }},
