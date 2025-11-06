@@ -98,7 +98,7 @@ const MainPage = () => {
       const data = await response.json();
       setResult(data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
     } finally {
       setLoading(false);
     }
