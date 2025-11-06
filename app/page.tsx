@@ -4,13 +4,16 @@ import { useState } from "react";
 import IconZap from "@/components/icons/IconZap";
 import { Blueprint } from "@/components/Blueprint/Blueprint";
 import { mockData } from "./mock-data";
+import { Layout as IconLayout, Code as IconCode } from "lucide-react"; // ✅ FIXED IMPORT
 
 // --- Header Component ---
-
 const Header = () => (
   <header className="text-center mb-12">
     <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
-      AutoThinker <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">v3.1</span>
+      AutoThinker{" "}
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">
+        v3.1
+      </span>
     </h1>
     <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
       The Agentic AI Business Builder — Now Powered by NVIDIA + AWS
@@ -19,7 +22,6 @@ const Header = () => (
 );
 
 // --- Form Component ---
-
 interface FormProps {
   idea: string;
   setIdea: (idea: string) => void;
@@ -28,9 +30,18 @@ interface FormProps {
   handleSubmit: (e: React.FormEvent) => void;
 }
 
-const IdeaForm: React.FC<FormProps> = ({ idea, setIdea, loading, error, handleSubmit }) => (
+const IdeaForm: React.FC<FormProps> = ({
+  idea,
+  setIdea,
+  loading,
+  error,
+  handleSubmit,
+}) => (
   <form onSubmit={handleSubmit} className="card-base p-6">
-    <label htmlFor="business-idea" className="block text-lg font-medium text-gray-200 mb-2">
+    <label
+      htmlFor="business-idea"
+      className="block text-lg font-medium text-gray-200 mb-2"
+    >
       Enter Your Business Idea
     </label>
     <textarea
@@ -42,11 +53,7 @@ const IdeaForm: React.FC<FormProps> = ({ idea, setIdea, loading, error, handleSu
       onChange={(e) => setIdea(e.target.value)}
     />
     {error && <p className="text-red-400 mt-2">{error}</p>}
-    <button
-      type="submit"
-      disabled={loading}
-      className="btn btn-primary mt-4 w-full"
-    >
+    <button type="submit" disabled={loading} className="btn btn-primary mt-4 w-full">
       {loading ? (
         <>
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -63,7 +70,6 @@ const IdeaForm: React.FC<FormProps> = ({ idea, setIdea, loading, error, handleSu
 );
 
 // --- Main Page Component ---
-
 const MainPage = () => {
   const [idea, setIdea] = useState("");
   const [loading, setLoading] = useState(false);
@@ -82,13 +88,14 @@ const MainPage = () => {
     setResult(null);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/generate_blueprint`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idea }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/generate_blueprint`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idea }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -102,18 +109,25 @@ const MainPage = () => {
     } finally {
       setLoading(false);
     }
-    await new Promise(resolve => setTimeout(resolve, 1500));
 
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     setResult(mockData);
-    setLoading(false);
   };
 
   return (
     <main className="container mx-auto px-4 py-12">
       <Header />
+
       <div className="max-w-3xl mx-auto">
-        <form onSubmit={handleSubmit} className="bg-slate-800/60 p-6 rounded-xl shadow-2xl border border-slate-700">
-          <label htmlFor="business-idea" className="block text-lg font-medium text-gray-200 mb-2">
+        {/* --- Input Form --- */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-slate-800/60 p-6 rounded-xl shadow-2xl border border-slate-700"
+        >
+          <label
+            htmlFor="business-idea"
+            className="block text-lg font-medium text-gray-200 mb-2"
+          >
             Enter Your Business Idea
           </label>
           <textarea
@@ -144,48 +158,77 @@ const MainPage = () => {
           </button>
         </form>
 
+        {/* --- Results Section --- */}
         {result && (
           <div className="mt-12 animate-fade-in">
-            <h2 className="text-3xl font-bold text-center mb-8">Your Startup Blueprint</h2>
-            
-            {/* Business Name & Pitch */}
+            <h2 className="text-3xl font-bold text-center mb-8">
+              Your Startup Blueprint
+            </h2>
+
+            {/* Business Summary */}
             <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h3 className="text-2xl font-semibold text-indigo-400">{result.name}</h3>
+              <h3 className="text-2xl font-semibold text-indigo-400">
+                {result.name}
+              </h3>
               <p className="text-gray-300 mt-2">{result.pitch}</p>
             </div>
 
-            {/* Core Details Grid */}
+            {/* Core Details */}
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700">
-                <h4 className="font-semibold text-lg mb-2 text-gray-200">Value Proposition</h4>
+                <h4 className="font-semibold text-lg mb-2 text-gray-200">
+                  Value Proposition
+                </h4>
                 <p className="text-gray-300">{result.valueProposition}</p>
               </div>
               <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700">
-                <h4 className="font-semibold text-lg mb-2 text-gray-200">SWOT Analysis</h4>
+                <h4 className="font-semibold text-lg mb-2 text-gray-200">
+                  SWOT Analysis
+                </h4>
                 <ul className="list-disc list-inside text-gray-300 space-y-1">
-                  <li><strong>Strengths:</strong> {result.swot.strengths}</li>
-                  <li><strong>Weaknesses:</strong> {result.swot.weaknesses}</li>
-                  <li><strong>Opportunities:</strong> {result.swot.opportunities}</li>
-                  <li><strong>Threats:</strong> {result.swot.threats}</li>
+                  <li>
+                    <strong>Strengths:</strong> {result.swot.strengths}
+                  </li>
+                  <li>
+                    <strong>Weaknesses:</strong> {result.swot.weaknesses}
+                  </li>
+                  <li>
+                    <strong>Opportunities:</strong> {result.swot.opportunities}
+                  </li>
+                  <li>
+                    <strong>Threats:</strong> {result.swot.threats}
+                  </li>
                 </ul>
               </div>
             </div>
 
             {/* Marketing */}
             <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h4 className="font-semibold text-lg mb-2 text-gray-200">Marketing & Funnel Strategy</h4>
-              <p className="text-gray-300 mb-2"><strong>Funnel:</strong> {result.marketing.funnel}</p>
-              <p className="text-gray-300 mb-2"><strong>Ad Strategy:</strong> {result.marketing.ads}</p>
-              <p className="text-gray-300"><strong>Lead Magnet:</strong> {result.marketing.leadMagnet}</p>
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">
+                Marketing & Funnel Strategy
+              </h4>
+              <p className="text-gray-300 mb-2">
+                <strong>Funnel:</strong> {result.marketing.funnel}
+              </p>
+              <p className="text-gray-300 mb-2">
+                <strong>Ad Strategy:</strong> {result.marketing.ads}
+              </p>
+              <p className="text-gray-300">
+                <strong>Lead Magnet:</strong> {result.marketing.leadMagnet}
+              </p>
             </div>
 
             {/* Roadmap */}
             <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h4 className="font-semibold text-lg mb-2 text-gray-200">3-Phase Product Roadmap</h4>
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">
+                3-Phase Product Roadmap
+              </h4>
               <div className="space-y-4">
-                {result.roadmap && result.roadmap.map((phase: any) => (
+                {result.roadmap?.map((phase: any) => (
                   <div key={phase.phase}>
-                    <h5 className="font-semibold text-indigo-400">{`Phase ${phase.phase}: ${phase.title}`}</h5>
+                    <h5 className="font-semibold text-indigo-400">
+                      {`Phase ${phase.phase}: ${phase.title}`}
+                    </h5>
                     <p className="text-gray-300">{phase.description}</p>
                   </div>
                 ))}
@@ -194,34 +237,40 @@ const MainPage = () => {
 
             {/* Execution Plan */}
             <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h4 className="font-semibold text-lg mb-2 text-gray-200">5-Step Execution Plan</h4>
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">
+                5-Step Execution Plan
+              </h4>
               <div className="space-y-4">
-                {result.execution_plan && result.execution_plan.map((step: any) => (
+                {result.execution_plan?.map((step: any) => (
                   <div key={step.step}>
-                    <h5 className="font-semibold text-indigo-400">{`Step ${step.step}: ${step.title}`}</h5>
+                    <h5 className="font-semibold text-indigo-400">
+                      {`Step ${step.step}: ${step.title}`}
+                    </h5>
                     <p className="text-gray-300">{step.description}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Export Options */}
+            {/* Export Buttons */}
             <div className="text-center">
-                <h4 className="font-semibold text-lg mb-4 text-gray-200">Tools & Exports</h4>
-                <div className="flex justify-center gap-4">
-                    <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
-                        <IconLayout />
-                        Export Pitch Deck
-                    </button>
-                    <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
-                        <IconCode />
-                        Export MVP Code
-                    </button>
-                </div>
+              <h4 className="font-semibold text-lg mb-4 text-gray-200">
+                Tools & Exports
+              </h4>
+              <div className="flex justify-center gap-4">
+                <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
+                  <IconLayout />
+                  Export Pitch Deck
+                </button>
+                <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
+                  <IconCode />
+                  Export MVP Code
+                </button>
+              </div>
             </div>
-
           </div>
         )}
+
         <IdeaForm
           idea={idea}
           setIdea={setIdea}
