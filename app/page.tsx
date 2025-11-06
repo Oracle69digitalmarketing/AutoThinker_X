@@ -82,7 +82,7 @@ const MainPage = () => {
     setResult(null);
 
     try {
-      const response = await fetch("http://localhost:8001/api/v1/generate_blueprint", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/generate_blueprint`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
