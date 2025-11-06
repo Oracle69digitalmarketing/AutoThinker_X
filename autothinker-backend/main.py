@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-# --- Pydantic Models (No changes here) ---
+# --- Pydantic Models ---
 
 class IdeaRequest(BaseModel):
     idea: str
@@ -20,12 +20,24 @@ class MarketingStrategy(BaseModel):
     ads: str
     leadMagnet: str
 
+class RoadmapPhase(BaseModel):
+    phase: int
+    title: str
+    description: str
+
+class ExecutionStep(BaseModel):
+    step: int
+    title: str
+    description: str
+
 class BlueprintResponse(BaseModel):
     name: str
     pitch: str
     valueProposition: str
     swot: SWOTAnalysis
     marketing: MarketingStrategy
+    roadmap: list[RoadmapPhase]
+    execution_plan: list[ExecutionStep]
 
 # --- FastAPI App Initialization & CORS (No changes here) ---
 
@@ -115,7 +127,7 @@ def generate_blueprint(req: IdeaRequest):
     builder_messages = [
         {"role": "system", "content": "You are a data formatting specialist. Your task is to synthesize all the provided information into a single, valid JSON object. Do not add any extra text, explanations, or markdown formatting. The output must be only the JSON object itself."},
         {"role": "user", "content": f"""
-        Based on the information below, generate a startup name, a concise pitch, a value proposition, a SWOT analysis, and a marketing strategy.
+        Based on the information below, generate a startup name, a concise pitch, a value proposition, a SWOT analysis, a marketing strategy, a 3-phase product roadmap, and a 5-step initial execution plan.
 
         Original Idea: "{req.idea}"
         Expanded Concept: "{expanded_concept}"
@@ -136,7 +148,19 @@ def generate_blueprint(req: IdeaRequest):
             "funnel": "A high-level marketing funnel strategy.",
             "ads": "A specific advertising channel or strategy.",
             "leadMagnet": "An idea for a lead magnet."
-          }}
+          }},
+          "roadmap": [
+            {{ "phase": 1, "title": "Phase 1 Title", "description": "Description of what will be achieved in phase 1." }},
+            {{ "phase": 2, "title": "Phase 2 Title", "description": "Description of what will be achieved in phase 2." }},
+            {{ "phase": 3, "title": "Phase 3 Title", "description": "Description of what will be achieved in phase 3." }}
+          ],
+          "execution_plan": [
+            {{ "step": 1, "title": "Step 1 Title", "description": "Description of the first step to execute." }},
+            {{ "step": 2, "title": "Step 2 Title", "description": "Description of the second step to execute." }},
+            {{ "step": 3, "title": "Step 3 Title", "description": "Description of the third step to execute." }},
+            {{ "step": 4, "title": "Step 4 Title", "description": "Description of the fourth step to execute." }},
+            {{ "step": 5, "title": "Step 5 Title", "description": "Description of the fifth step to execute." }}
+          ]
         }}
         """}
     ]

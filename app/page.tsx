@@ -24,28 +24,27 @@ export default function Home() {
     setError(null);
     setResult(null);
 
-    // Mock API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch("http://localhost:8001/api/v1/generate_blueprint", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idea }),
+      });
 
-    // Mock success response
-    setResult({
-      name: "QuantumLeap AI",
-      pitch: "An AI-powered platform that helps developers write and debug quantum computing algorithms.",
-      valueProposition: "Making quantum computing accessible to the average developer, today.",
-      swot: {
-        strengths: "First-mover advantage, strong technical team.",
-        weaknesses: "High barrier to entry, niche market.",
-        opportunities: "Growth in AI and quantum computing sectors.",
-        threats: "Competition from major tech giants.",
-      },
-      marketing: {
-        funnel: "Content marketing (blogs, tutorials) -> Webinar -> Free Trial -> Subscription.",
-        ads: "Targeted LinkedIn ads for developers and researchers.",
-        leadMagnet: "A free e-book: 'The Developer\'s Guide to Quantum Computing'.",
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "An unknown error occurred.");
       }
-    });
 
-    setLoading(false);
+      const data = await response.json();
+      setResult(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -125,6 +124,32 @@ export default function Home() {
               <p className="text-gray-300 mb-2"><strong>Funnel:</strong> {result.marketing.funnel}</p>
               <p className="text-gray-300 mb-2"><strong>Ad Strategy:</strong> {result.marketing.ads}</p>
               <p className="text-gray-300"><strong>Lead Magnet:</strong> {result.marketing.leadMagnet}</p>
+            </div>
+
+            {/* Roadmap */}
+            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">3-Phase Product Roadmap</h4>
+              <div className="space-y-4">
+                {result.roadmap && result.roadmap.map((phase: any) => (
+                  <div key={phase.phase}>
+                    <h5 className="font-semibold text-indigo-400">{`Phase ${phase.phase}: ${phase.title}`}</h5>
+                    <p className="text-gray-300">{phase.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Execution Plan */}
+            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
+              <h4 className="font-semibold text-lg mb-2 text-gray-200">5-Step Execution Plan</h4>
+              <div className="space-y-4">
+                {result.execution_plan && result.execution_plan.map((step: any) => (
+                  <div key={step.step}>
+                    <h5 className="font-semibold text-indigo-400">{`Step ${step.step}: ${step.title}`}</h5>
+                    <p className="text-gray-300">{step.description}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Export Options */}
