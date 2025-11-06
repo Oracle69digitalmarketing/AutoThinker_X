@@ -18,7 +18,7 @@ class SWOTAnalysis(BaseModel):
 class MarketingStrategy(BaseModel):
     funnel: str
     ads: str
-    leadMagnet: str
+    lead_magnet: str
 
 class RoadmapPhase(BaseModel):
     phase: int
