@@ -33,7 +33,7 @@ class ExecutionStep(BaseModel):
 class BlueprintResponse(BaseModel):
     name: str
     pitch: str
-    valueProposition: str
+    value_proposition: str
     swot: SWOTAnalysis
     marketing: MarketingStrategy
     roadmap: list[RoadmapPhase]
