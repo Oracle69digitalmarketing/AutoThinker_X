@@ -1,5 +1,4 @@
 import os
-import requests
 import json
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -40,38 +39,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- NVIDIA NIM Configuration (UPDATED) ---
+# --- Gemini API Configuration ---
+import google.generativeai as genai
 
-# UPDATED: The URL now points to the 'chat/completions' endpoint.
-NIM_API_URL = os.getenv("NIM_API_URL", "http://localhost:8000/v1/chat/completions")
-NIM_API_KEY = os.getenv("NIM_API_KEY", "your_local_or_cloud_key")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable not set")
 
-# --- Helper Function to Call NVIDIA NIM (UPDATED) ---
+genai.configure(api_key=GEMINI_API_KEY)
+
+# --- Helper Function to Call Generation Model ---
 
 def call_nim_model(messages: list, max_tokens: int = 2048) -> str:
     """
-    Calls the NVIDIA NIM service using the Chat Completions format.
+    Calls the generative model using the Gemini API.
+    The function signature is kept the same to maintain architectural consistency.
     """
-    headers = {
-        "Authorization": f"Bearer {NIM_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    # UPDATED: The payload now uses a 'messages' list instead of a 'prompt' string.
-    json_data = {
-        "model": "llama-3.1-nemotron-nano-8b-v1", # This can be changed to other models if available
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.7,
-        "stream": False,
-    }
+    # Convert messages to Gemini format
+    system_prompt = ""
+    user_messages = []
+    for message in messages:
+        if message["role"] == "system":
+            system_prompt = message["content"]
+        else:
+            # Gemini uses 'user' and 'model' roles.
+            role = "user" if message["role"] == "user" else "model"
+            user_messages.append({"role": role, "parts": [message["content"]]})
+
     try:
-        response = requests.post(NIM_API_URL, headers=headers, json=json_data, timeout=120)
-        response.raise_for_status()
-        result = response.json()
-        # UPDATED: The response content is now in 'choices[0].message.content'.
-        return result['choices'][0]['message']['content'].strip()
-    except requests.exceptions.RequestException as e:
-        print(f"Error calling NIM service: {e}")
+        generation_config = genai.types.GenerationConfig(
+            max_output_tokens=max_tokens,
+            temperature=0.7,
+        )
+        
+        if system_prompt:
+            model = genai.GenerativeModel('gemini-pro', system_instruction=system_prompt)
+        else:
+            model = genai.GenerativeModel('gemini-pro')
+
+        response = model.generate_content(user_messages, generation_config=generation_config)
+
+        # Handle cases where the model returns no content
+        if not response.parts:
+            print("Warning: Received empty response from model.")
+            return ""
+
+        return response.text.strip()
+    except Exception as e:
+        print(f"Error calling Gemini API: {e}")
         raise HTTPException(status_code=500, detail="Failed to communicate with the generation model.")
 
 # --- API Endpoint with Agentic Workflow (UPDATED) ---
