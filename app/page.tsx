@@ -1,287 +1,145 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import IconZap from "@/components/icons/IconZap";
-import { Blueprint } from "@/components/Blueprint/Blueprint";
-import { mockData } from "./mock-data";
-import { Layout as IconLayout, Code as IconCode } from "lucide-react"; // ✅ FIXED IMPORT
+import { useState, useEffect } from 'react'
+import { 
+  Plus, RefreshCw, Search, Settings, Trash2, Edit, Loader2, 
+  CheckCircle2, AlertTriangle, ChevronRight, Menu
+} from 'lucide-react'
+import Link from 'next/link'
+import axios from 'axios'
 
-// --- Header Component ---
-const Header = () => (
-  <header className="text-center mb-12">
-    <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
-      AutoThinker{" "}
-      <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">
-        v3.1
-      </span>
-    </h1>
-    <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
-      The Agentic AI Business Builder — Now Powered by NVIDIA + AWS
-    </p>
-  </header>
-);
+export default function DashboardPage() {
+  const [blueprints, setBlueprints] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
-// --- Form Component ---
-interface FormProps {
-  idea: string;
-  setIdea: (idea: string) => void;
-  loading: boolean;
-  error: string | null;
-  handleSubmit: (e: React.FormEvent) => void;
-}
+  // Load live data from API
+  useEffect(() => {
+    fetchBlueprints()
+  }, [])
 
-const IdeaForm: React.FC<FormProps> = ({
-  idea,
-  setIdea,
-  loading,
-  error,
-  handleSubmit,
-}) => (
-  <form onSubmit={handleSubmit} className="card-base p-6">
-    <label
-      htmlFor="business-idea"
-      className="block text-lg font-medium text-gray-200 mb-2"
-    >
-      Enter Your Business Idea
-    </label>
-    <textarea
-      id="business-idea"
-      rows={4}
-      className="w-full p-4 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-200"
-      placeholder="e.g., A platform that uses AI to create personalized travel itineraries..."
-      value={idea}
-      onChange={(e) => setIdea(e.target.value)}
-    />
-    {error && <p className="text-red-400 mt-2">{error}</p>}
-    <button type="submit" disabled={loading} className="btn btn-primary mt-4 w-full">
-      {loading ? (
-        <>
-          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          Generating...
-        </>
-      ) : (
-        <>
-          <IconZap />
-          Generate Blueprint
-        </>
-      )}
-    </button>
-  </form>
-);
-
-// --- Main Page Component ---
-const MainPage = () => {
-  const [idea, setIdea] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<any | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!idea.trim()) {
-      setError("Please enter a business idea.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
+  const fetchBlueprints = async () => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/generate_blueprint`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idea }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "An unknown error occurred.");
-      }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (err: any) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+      setLoading(true)
+      const res = await axios.get('/api/blueprints')
+      setBlueprints(res.data)
+    } catch (err) {
+      console.error('Error fetching blueprints:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
+  }
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setResult(mockData);
-  };
+  const refresh = async () => {
+    setRefreshing(true)
+    await fetchBlueprints()
+    setRefreshing(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this blueprint?')) return
+    try {
+      await axios.delete(`/api/blueprints/${id}`)
+      setBlueprints(prev => prev.filter(b => b.id !== id))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const filteredBlueprints = blueprints.filter(bp =>
+    bp.name.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
-    <main className="container mx-auto px-4 py-12">
-      <Header />
-
-      <div className="max-w-3xl mx-auto">
-        {/* --- Input Form --- */}
-        <form
-          onSubmit={handleSubmit}
-          className="bg-slate-800/60 p-6 rounded-xl shadow-2xl border border-slate-700"
-        >
-          <label
-            htmlFor="business-idea"
-            className="block text-lg font-medium text-gray-200 mb-2"
-          >
-            Enter Your Business Idea
-          </label>
-          <textarea
-            id="business-idea"
-            rows={4}
-            className="w-full p-4 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-200"
-            placeholder="e.g., A platform that uses AI to create personalized travel itineraries..."
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-          />
-          {error && <p className="text-red-400 mt-2">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 w-full flex items-center justify-center gap-2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-900/50 disabled:cursor-not-allowed transition-all"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Generating...
-              </>
-            ) : (
-              <>
-                <IconZap />
-                Generate Blueprint
-              </>
-            )}
+    <main className="min-h-screen bg-gray-50 text-gray-900 p-6">
+      {/* Header */}
+      <header className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden">
+            <Menu size={24} />
           </button>
-        </form>
+          <h1 className="text-2xl font-semibold">Project Blueprints</h1>
+        </div>
 
-        {/* --- Results Section --- */}
-        {result && (
-          <div className="mt-12 animate-fade-in">
-            <h2 className="text-3xl font-bold text-center mb-8">
-              Your Startup Blueprint
-            </h2>
-
-            {/* Business Summary */}
-            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h3 className="text-2xl font-semibold text-indigo-400">
-                {result.name}
-              </h3>
-              <p className="text-gray-300 mt-2">{result.pitch}</p>
-            </div>
-
-            {/* Core Details */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700">
-                <h4 className="font-semibold text-lg mb-2 text-gray-200">
-                  Value Proposition
-                </h4>
-                <p className="text-gray-300">{result.valueProposition}</p>
-              </div>
-              <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700">
-                <h4 className="font-semibold text-lg mb-2 text-gray-200">
-                  SWOT Analysis
-                </h4>
-                <ul className="list-disc list-inside text-gray-300 space-y-1">
-                  <li>
-                    <strong>Strengths:</strong> {result.swot.strengths}
-                  </li>
-                  <li>
-                    <strong>Weaknesses:</strong> {result.swot.weaknesses}
-                  </li>
-                  <li>
-                    <strong>Opportunities:</strong> {result.swot.opportunities}
-                  </li>
-                  <li>
-                    <strong>Threats:</strong> {result.swot.threats}
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Marketing */}
-            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h4 className="font-semibold text-lg mb-2 text-gray-200">
-                Marketing & Funnel Strategy
-              </h4>
-              <p className="text-gray-300 mb-2">
-                <strong>Funnel:</strong> {result.marketing.funnel}
-              </p>
-              <p className="text-gray-300 mb-2">
-                <strong>Ad Strategy:</strong> {result.marketing.ads}
-              </p>
-              <p className="text-gray-300">
-                <strong>Lead Magnet:</strong> {result.marketing.leadMagnet}
-              </p>
-            </div>
-
-            {/* Roadmap */}
-            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h4 className="font-semibold text-lg mb-2 text-gray-200">
-                3-Phase Product Roadmap
-              </h4>
-              <div className="space-y-4">
-                {result.roadmap?.map((phase: any) => (
-                  <div key={phase.phase}>
-                    <h5 className="font-semibold text-indigo-400">
-                      {`Phase ${phase.phase}: ${phase.title}`}
-                    </h5>
-                    <p className="text-gray-300">{phase.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Execution Plan */}
-            <div className="bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 mb-6">
-              <h4 className="font-semibold text-lg mb-2 text-gray-200">
-                5-Step Execution Plan
-              </h4>
-              <div className="space-y-4">
-                {result.execution_plan?.map((step: any) => (
-                  <div key={step.step}>
-                    <h5 className="font-semibold text-indigo-400">
-                      {`Step ${step.step}: ${step.title}`}
-                    </h5>
-                    <p className="text-gray-300">{step.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Export Buttons */}
-            <div className="text-center">
-              <h4 className="font-semibold text-lg mb-4 text-gray-200">
-                Tools & Exports
-              </h4>
-              <div className="flex justify-center gap-4">
-                <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
-                  <IconLayout />
-                  Export Pitch Deck
-                </button>
-                <button className="flex items-center gap-2 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-slate-600 transition-all">
-                  <IconCode />
-                  Export MVP Code
-                </button>
-              </div>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search blueprints..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        )}
 
-        <IdeaForm
-          idea={idea}
-          setIdea={setIdea}
-          loading={loading}
-          error={error}
-          handleSubmit={handleSubmit}
-        />
-        <Blueprint result={result} />
-      </div>
+          <button 
+            onClick={refresh} 
+            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100"
+          >
+            {refreshing ? <Loader2 className="animate-spin" size={18} /> : <RefreshCw size={18} />}
+          </button>
+
+          <Link href="/create">
+            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+              <Plus size={18} /> New
+            </button>
+          </Link>
+
+          <Link href="/settings">
+            <Settings className="text-gray-600 hover:text-gray-900" size={20} />
+          </Link>
+        </div>
+      </header>
+
+      {/* Blueprint Grid */}
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="animate-spin text-blue-500" size={32} />
+        </div>
+      ) : (
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredBlueprints.length === 0 ? (
+            <div className="text-center text-gray-500 col-span-full py-10">
+              <AlertTriangle className="mx-auto mb-2" />
+              No blueprints found.
+            </div>
+          ) : (
+            filteredBlueprints.map(bp => (
+              <div 
+                key={bp.id}
+                className="p-5 bg-white rounded-2xl shadow hover:shadow-lg transition relative"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h2 className="font-semibold text-lg">{bp.name}</h2>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleDelete(bp.id)}>
+                      <Trash2 className="text-red-500 hover:text-red-700" size={16} />
+                    </button>
+                    <Link href={`/edit/${bp.id}`}>
+                      <Edit className="text-gray-500 hover:text-gray-700" size={16} />
+                    </Link>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">{bp.description || 'No description'}</p>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-400">
+                    Updated {new Date(bp.updatedAt).toLocaleDateString()}
+                  </span>
+                  {bp.status === 'complete' ? (
+                    <CheckCircle2 className="text-green-500" size={18} />
+                  ) : (
+                    <ChevronRight className="text-blue-500" size={18} />
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      )}
     </main>
-  );
-};
-
-export default MainPage;
+  )
+}
