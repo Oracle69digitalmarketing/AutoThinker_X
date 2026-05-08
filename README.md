@@ -1,85 +1,57 @@
-# AutoThinker
+# 🚀 AutoThinker X: Agent-Native Venture OS
 
-**AutoThinker** is an agentic application designed to help entrepreneurs and product teams turn abstract ideas into actionable plans. It leverages a network of autonomous "Think Agents" to facilitate reasoning, ideation, and workflow generation.
+AutoThinker X is a high-performance, agentic venture-building platform designed to turn raw ideas into investor-ready business blueprints in seconds. Powered by a chain of specialized AI agents, it automates the most complex stages of venture architecture, growth strategy, and asset creation.
 
-## Architecture
+![AutoThinker X Logo](https://raw.githubusercontent.com/antigravity-ai/assets/main/autothinker_logo.png)
 
-AutoThinker is built on a multi-agent architecture, where each agent has a specific role in the product development lifecycle:
+## 🧠 The Agent Network
+AutoThinker X utilizes a proprietary **Multi-Agent Chain** where four specialized entities collaborate sequentially:
 
-*   **Idea Agent:** Responsible for conceptual reasoning, text generation, and initial planning.
-*   **Strategy Agent:** Synthesizes insights from multiple contexts, leveraging retrieved data to form strategic plans.
-*   **Builder Agent:** Generates structured blueprints for Minimum Viable Products (MVPs) based on the strategies developed.
+1.  **Venture Architect**: Analyzes core problems, identifies target audience psychographics, and constructs strategic SWOT analyses.
+2.  **Growth Marketing**: Designs conversion funnels, drafts multi-channel ad copy, and blueprints automated email sequences.
+3.  **Asset Specialist**: Crafts high-conversion landing page copy, drafts investor one-pagers, and defines execution roadmaps.
+4.  **Synthesis Engine**: Normalizes all outputs into a structured business blueprint, ensuring internal consistency and market alignment.
 
-The backend is powered by a FastAPI application that orchestrates the agents and communicates with the NVIDIA NIM microservices. The frontend is a Next.js application that provides the user interface for interacting with the agents.
+## ✨ Key Features
 
-## Technology Stack
+### 🎙️ Multi-Modal Input
+*   **Voice-to-Blueprint**: Speak your ideas naturally using the integrated speech-to-text engine.
+*   **Prompt Engineering**: Context-aware input field designed for deep venture descriptions.
 
-*   **Reasoning Model:** `llama-3.1-nemotron-nano-8B-v1`
-*   **Model Deployment:** NVIDIA NIM (NVIDIA Inference Microservice)
-*   **Retrieval:** NVIDIA NeMo Retriever (Retrieval Embedding NIM)
-*   **Backend:** FastAPI
-*   **Frontend:** Next.js, React, TypeScript
-*   **Cloud Infrastructure:** AWS EKS, Amazon SageMaker, Amazon DynamoDB
+### 🎨 Branding Modes
+Tailor your output to your target market with one of three visual and linguistic styles:
+*   **Tech Bold**: High-energy, futuristic, and disruptive.
+*   **Corporate**: Professional, trust-focused, and clean.
+*   **Playful**: Modern, accessible, and friendly.
 
-## Features
+### 📋 Professional Artifacts
+Each blueprint includes:
+*   **Value Proposition Canvas**: Detailed Pains, Gains, and Jobs-to-be-done.
+*   **Customer Profiles**: 3 distinct segments with deep motivations.
+*   **Growth Funnel**: Visual strategy for Awareness, Interest, Decision, and Action.
+*   **Marketing Suite**: Ad copy, email sequences (Welcome/Value/Offer), and social media series.
+*   **Execution Roadmap**: 5-step action plan and 3-phase strategic milestones.
+*   **Investor Assets**: Narrative One-Pager and high-conversion Landing Page copy.
 
-*   **Goal-Oriented Reasoning:** Turns abstract ideas into concrete product MVPs, roadmaps, and execution plans.
-*   **Multi-Agent Orchestration:** A seamless workflow from the Idea Agent to the Strategy Agent and finally to the Build Agent.
-*   **Document Ingestion:** Supports ingestion of various document formats, including PDFs, notes, screenshots, and pitch decks.
-*   **Contextual Memory:** Utilizes a vector database to provide context-aware responses and maintain memory of user-uploaded materials.
-*   **Cross-Reference Reasoning:** Capable of connecting disparate pieces of information, such as linking a user's AgriTech notes with FinTech patterns.
-*   **MVP Blueprint Generation:** Automatically generates structured blueprints for MVPs.
+### 🔍 Transparency & Export
+*   **Agent Logs**: View the "Chain of Thought" for every agent to understand the rationale behind the strategy.
+*   **History**: A searchable database of all generated blueprints stored in the cloud.
+*   **PDF Export**: Print-ready formatting for professional distribution.
 
-## Challenge Compliance: AWS × NVIDIA "Agentic Application"
+## 🛠️ Getting Started
 
-AutoThinker fully satisfies the requirements of the AWS × NVIDIA “Agentic Application” challenge.
+1.  **Enter Your Idea**: Describe your startup concept or use the **Microphone** icon to speak it.
+2.  **Select Branding**: Choose the "vibe" that matches your vision (Tech, Corp, or Playful).
+3.  **Generate**: Watch the Agent Network sync and build your venture.
+4.  **Review Logs**: Open the "Logs" tab to see the underlying agent logic.
+5.  **Export**: Use the "Export Business Plan" button to save your blueprint.
 
-| Challenge Clause | AutoThinker Feature | Status |
-| :--- | :--- | :--- |
-| Use `llama-3.1-nemotron-nano-8B-v1` | Core reasoning engine for all agents. | ✅ |
-| Deploy via NVIDIA NIM microservice | The model is hosted and served via NVIDIA NIM. | ✅ |
-| Integrate Retrieval Embedding NIM | Used for document ingestion and contextual memory. | ✅ |
-| Agentic behavior | Implemented as a multi-agent workflow (Idea → Strategy → Build). | ✅ |
-| AWS integration | Deployed on AWS using EKS, SageMaker, and DynamoDB. | ✅ |
+## 🏗️ Tech Stack
+*   **AI**: Google Gemini 1.5 & 2.0 (Flash & Pro)
+*   **Frontend**: React 18, Vite, Tailwind CSS, Framer Motion
+*   **Database**: Firebase Firestore (Enterprise Edition)
+*   **Icons**: Lucide React
+*   **Styling**: Custom "Glassmorphism" Design Language
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-## Architectural Diagram
-
-```
-[User] -> [Frontend (Next.js)] -> [Backend (FastAPI)]
-                                     |
-                                     v
-+-----------------------------------------------------------------+
-|                           Backend (FastAPI)                     |
-|                                                                 |
-|  [API Endpoint (/api/nvidia/generate)] -> [NVIDIA NIM]           |
-|                                             |                   |
-|                                             v                   |
-|                                [llama-3.1-nemotron-nano-8B-v1]    |
-|                                                                 |
-+-----------------------------------------------------------------+
-                                     |
-                                     v
-+-----------------------------------------------------------------+
-|                         Agent Orchestrator                      |
-|                                                                 |
-|  [Idea Agent] -> [Strategy Agent] -> [Builder Agent]            |
-|      |                 |                   |                    |
-|      +-----------------+-------------------+--------------------+
-|                        |
-|                        v
-|  [NVIDIA NeMo Retriever (Retrieval Embedding NIM)] -> [Vector DB] |
-|                                                                 |
-+-----------------------------------------------------------------+
-```
+---
+*Built with AutoThinker AI — The future of venture building is agentic.*

@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    function isValidBlueprint(data) {
+      return data.keys().hasAll(['name', 'pitch', 'value_proposition', 'swot', 'marketing', 'roadmap', 'execution_plan'])
+        && data.name is string && data.name.size() <= 200
+        && data.pitch is string && data.pitch.size() <= 1000
+        && data.value_proposition is map
+        && data.swot is map
+        && data.marketing is map
+        && data.roadmap is list
+        && data.execution_plan is list
+        && (!data.keys().hasAny(['pitch_deck']) || data.pitch_deck is list)
+        && (!data.keys().hasAny(['funding_opportunities']) || data.funding_opportunities is list)
+        && (!data.keys().hasAny(['customer_profiles']) || data.customer_profiles is list)
+        && (!data.keys().hasAny(['one_pager']) || data.one_pager is string)
+        && (!data.keys().hasAny(['landing_copy']) || data.landing_copy is map)
+        && (!data.keys().hasAny(['tagline']) || data.tagline is string)
+        && (!data.keys().hasAny(['branding']) || data.branding is string)
+        && (!data.keys().hasAny(['agent_logs']) || data.agent_logs is list);
+    }
+
+    match /blueprints/{blueprintId} {
+      allow read: if true;
+      allow create: if isValidBlueprint(request.resource.data);
+      allow delete: if true;
+    }
+  }
+}
