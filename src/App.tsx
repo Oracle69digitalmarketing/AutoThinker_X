@@ -139,36 +139,38 @@ export default function App() {
       setLoadingStep('Architecting Venture Concept...');
       addLog('Venture Architect', `Analyzing core idea: "${idea}" with a ${branding} lens.`);
       const architectResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: `You are an elite Venture Architect. Branding style: ${branding}. Expand this idea: "${idea}"
-        Define:
+        Provide a structured analysis including:
         - Core Problem & Solution
-        - Target Audience Demographics & Psychographics
-        - 3 Distinct Customer Profiles (Name, Pain Points, Motivations)
-        - Value Proposition Canvas details (User Jobs, Pains, Gains)
-        - Strategic SWOT Analysis`
+        - Target Audience: Detailed demographics and psychographics
+        - 3 Distinct Customer Profiles: Include Name, specific Pain Points, and Motivations for each
+        - Value Proposition Canvas: Define specific User Jobs, Pains, and Gains
+        - Strategic SWOT Analysis: Break down Strengths, Weaknesses, Opportunities, and Threats clearly.`
       });
       const conceptData = architectResponse.text || '';
-      addLog('Venture Architect', 'Concept structured. Audience segments identified and SWOT matrix calibrated.');
+      const architectUsage = architectResponse.usageMetadata;
+      addLog('Venture Architect', `Concept structured. [Tokens: ${architectUsage?.promptTokenCount || 0} in / ${architectUsage?.candidatesTokenCount || 0} out]`);
 
       // 1.5 Market Intelligence Agent
       setLoadingStep('Analyzing Competitors...');
       addLog('Market Intelligence', 'Scanning market landscape for potential competitors and gaps.');
       const marketResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: `You are a Market Intelligence Analyst. Branding style: ${branding}. Based on this venture concept: "${conceptData}"
         Identify:
         - 3-4 key competitors in this space
         - For each: Their name, their unfair advantage, and the critical GAP they are missing that this startup fills.`
       });
       const marketData = marketResponse.text || '';
-      addLog('Market Intelligence', 'Competitor analysis complete. Market gaps identified.');
+      const marketUsage = marketResponse.usageMetadata;
+      addLog('Market Intelligence', `Competitor analysis complete. [Tokens: ${marketUsage?.promptTokenCount || 0} in / ${marketUsage?.candidatesTokenCount || 0} out]`);
 
       // 2. Growth & Marketing Agent
       setLoadingStep('Designing Marketing & Funnel...');
       addLog('Growth Marketing', 'Synthesizing acquisition channels and developing conversion funnel.');
       const growthResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: `You are a Growth Marketing Director. Branding style: ${branding}. Based on this venture concept: "${conceptData}"
         Develop:
         - Full Marketing Funnel Strategy
@@ -178,13 +180,14 @@ export default function App() {
         - Ad Copy for Facebook & Google`
       });
       const marketingData = growthResponse.text || '';
-      addLog('Growth Marketing', 'Marketing collateral drafted. Ad copies and email flows optimized for conversion.');
+      const growthUsage = growthResponse.usageMetadata;
+      addLog('Growth Marketing', `Marketing collateral drafted. [Tokens: ${growthUsage?.promptTokenCount || 0} in / ${growthUsage?.candidatesTokenCount || 0} out]`);
 
       // 3. Document Specialist Agent
       setLoadingStep('Generating Launch Assets...');
       addLog('Asset Specialist', 'Drafting investor-facing documents and high-conversion copy.');
       const docResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: `You are a professional copywriter and business analyst. Branding style: ${branding}. Based on the concept: "${conceptData}"
         Create:
         - High-converting Landing Page Copy (Hero, Subline, CTA)
@@ -193,80 +196,127 @@ export default function App() {
         - 3-phase Roadmap`
       });
       const docData = docResponse.text || '';
-      addLog('Asset Specialist', 'One-pager and landing page copy finalized. Roadmap milestones locked.');
+      const docUsage = docResponse.usageMetadata;
+      addLog('Asset Specialist', `Roadmap milestones locked. [Tokens: ${docUsage?.promptTokenCount || 0} in / ${docUsage?.candidatesTokenCount || 0} out]`);
 
       // 4. Synthesis & Formatting Agent
       setLoadingStep('Finalizing Blueprint...');
       addLog('Synthesis Engine', 'Final data aggregation and JSON normalization in progress.');
       const builderResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: `You are a precision data engineer. Synthesize the provided information into a single, valid JSON object. 
-        Branding: ${branding}.
-        Strictly follow the JSON schema provided. Output ONLY the JSON.
+        model: "gemini-2.0-flash-lite",
+        contents: `You are a precision data engineer. Synthesize the provided information into a single, valid JSON object that strictly adheres to the schema below.
+        
+        Information to synthesize:
+        - Branding Style: ${branding}
+        - Concept Analysis: ${conceptData}
+        - Market Intelligence: ${marketData}
+        - Marketing Collateral: ${marketingData}
+        - Launch Assets: ${docData}
 
-        Concept: ${conceptData}
-        Market: ${marketData}
-        Marketing: ${marketingData}
-        Assets: ${docData}
-
-        JSON Schema:
+        JSON Schema Requirements:
         {
           "name": "Startup Name",
-          "tagline": "Punchy tagline",
-          "pitch": "One sentence elevator pitch",
-          "branding": "${branding}",
-          "value_proposition": { "pains": "...", "gains": "...", "jobs": "..." },
+          "tagline": "A punchy, memorable tagline",
+          "pitch": "A compelling one-sentence elevator pitch",
+          "branding": "${branding}", 
+          "value_proposition": { 
+            "pains": "Detailed customer pains addressed", 
+            "gains": "Benefits and gains provided", 
+            "jobs": "The primary jobs-to-be-done for the customer" 
+          },
           "customer_profiles": [
-            { "name": "...", "pain_points": ["..."], "motivations": ["..."], "demographics": "..." }
+            { 
+              "name": "Profile Name", 
+              "pain_points": ["Pain 1", "Pain 2"], 
+              "motivations": ["Motivation 1", "Motivation 2"], 
+              "demographics": "Specific demographic details" 
+            }
           ],
-          "swot": { "strengths": "...", "weaknesses": "...", "opportunities": "...", "threats": "..." },
+          "swot": { 
+            "strengths": "Internal strengths and advantages", 
+            "weaknesses": "Internal weaknesses and gaps", 
+            "opportunities": "External market opportunities", 
+            "threats": "External market threats" 
+          },
           "competitors": [
-            { "name": "...", "advantage": "...", "gap": "..." }
+            { "name": "Competitor Name", "advantage": "Their unfair advantage", "gap": "The critical gap they miss" }
           ],
           "marketing": {
-            "funnel_strategy": "...",
-            "ads_copy": { "facebook": "...", "google": "..." },
-            "lead_magnet": { "title": "...", "description": "...", "tripwire_offer": "..." },
-            "email_sequence": [ { "subject": "...", "body": "..." } ],
-            "social_posts": ["Post 1", "Post 2", "Post 3"]
+            "funnel_strategy": "High-level marketing funnel overview",
+            "ads_copy": { "facebook": "Facebook ad copy", "google": "Google search ad copy" },
+            "lead_magnet": { "title": "Lead Magnet Title", "description": "Description", "tripwire_offer": "Tripwire offer details" },
+            "email_sequence": [ { "subject": "Email Subject", "body": "Full email body content" } ],
+            "social_posts": ["Post content 1", "Post content 2", "Post content 3"]
           },
-          "roadmap": [ { "phase": 1, "title": "...", "description": "..." } ],
-          "execution_plan": [ { "step": 1, "title": "...", "description": "..." } ],
-          "one_pager": "...",
-          "landing_copy": { "hero_headline": "...", "hero_subheadline": "...", "cta_text": "..." }
-        }`,
+          "roadmap": [ { "phase": 1, "title": "Phase Title", "description": "Phase description" } ],
+          "execution_plan": [ { "step": 1, "title": "Step Title", "description": "Step description" } ],
+          "one_pager": "Complete executive summary / one-pager text",
+          "landing_copy": { "hero_headline": "Hero Headline", "hero_subheadline": "Hero Subheadline", "cta_text": "Primary CTA button text" }
+        }
+
+        Rules:
+        1. Output ONLY valid JSON.
+        2. Ensure 'swot' and 'value_proposition' are OBJECTS, not strings.
+        3. All arrays must contain at least one valid object.
+        4. The 'branding' value must be exactly "${branding}".`,
         config: { responseMimeType: "application/json" }
       });
 
       let jsonOutput = builderResponse.text || '';
+      const builderUsage = builderResponse.usageMetadata;
+      
       const newBlueprint: Blueprint = JSON.parse(jsonOutput);
       
-      // Enrich with logs
-      newBlueprint.agent_logs = [...agentLogs, { 
+      // Calculate total usage
+      // @ts-ignore - access metadata if present in response
+      const totalIn = (architectUsage?.promptTokenCount || 0) + (marketUsage?.promptTokenCount || 0) + (growthUsage?.promptTokenCount || 0) + (docUsage?.promptTokenCount || 0) + (builderUsage?.promptTokenCount || 0);
+      // @ts-ignore
+      const totalOut = (architectUsage?.candidatesTokenCount || 0) + (marketUsage?.candidatesTokenCount || 0) + (growthUsage?.candidatesTokenCount || 0) + (docUsage?.candidatesTokenCount || 0) + (builderUsage?.candidatesTokenCount || 0);
+
+      // Enrich with logs BEFORE any state updates or Firestore writes
+      const finalLogs = [...agentLogs, { 
         agent: 'Synthesis Engine', 
-        thought: 'Final validation complete. Blueprint ready for launch.', 
+        thought: `Final validation complete. Total Blueprint Cost Metrics: ${totalIn} input tokens, ${totalOut} output tokens. Blueprint ready for launch.`, 
         timestamp: new Date().toLocaleTimeString() 
       }];
       
-      setBlueprint(newBlueprint);
+      const blueprintWithLogs: Blueprint = {
+        ...newBlueprint,
+        agent_logs: finalLogs
+      };
+      
+      setBlueprint(blueprintWithLogs);
       addLog('Synthesis Engine', 'Blueprint finalized and synchronized to cloud storage.');
       
       const path = "blueprints";
       try {
         const docRef = await addDoc(collection(db, path), {
-          ...newBlueprint,
+          ...blueprintWithLogs,
           updatedAt: Timestamp.now(),
           status: 'complete'
         });
-        setBlueprint({ ...newBlueprint, id: docRef.id });
+        setBlueprint({ ...blueprintWithLogs, id: docRef.id });
       } catch (error) {
+        console.error("Firestore Save Error:", error);
         handleFirestoreError(error, OperationType.CREATE, path);
       }
       
       setView('view');
     } catch (error) {
       console.error("Generation failed:", error);
-      alert("Failed to generate blueprint. Please try again.");
+      let errorMessage = "Failed to generate blueprint. Please try again.";
+      if (error instanceof Error) {
+        try {
+          // If handleFirestoreError was called, it throws a JSON string
+          const parsedError = JSON.parse(error.message);
+          if (parsedError.error) {
+            errorMessage = `Firestore Error: ${parsedError.error}`;
+          }
+        } catch (e) {
+          errorMessage = `Error: ${error.message}`;
+        }
+      }
+      alert(errorMessage);
     } finally {
       setLoading(false);
       setLoadingStep('');
@@ -290,7 +340,7 @@ export default function App() {
     setIsGeneratingDeck(true);
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: `You are a startup fundraising expert. Based on the business blueprint provided below, generate a professional 7-slide pitch deck. Each slide should have a title, key content/bullets, and a 'visual_cue' describing what type of graphic or image should be on that slide.
         
         Business Name: ${blueprint.name}
@@ -324,7 +374,7 @@ export default function App() {
     setIsFindingFunding(true);
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: `You are a venture capital and startup researcher. Based on the business blueprint below, find 4-5 relevant and realistic funding opportunities, cohorts, or hackathons.
         While these should be realistic based on the industry (e.g. mention Y Combinator for software, or specific industry grants), ensure they are highly relevant to the product niche.
         
@@ -359,14 +409,9 @@ export default function App() {
         <div className="flex items-center gap-3 px-2">
           <div className="bg-white/5 p-1 rounded-xl shadow-lg border border-white/10">
             <img 
-              src="https://raw.githubusercontent.com/antigravity-ai/assets/main/autothinker_logo.png" 
-              alt="Logo" 
+              src="/logo.png" 
+              alt="AutoThinker X Logo" 
               className="w-10 h-10 object-contain rounded-lg"
-              onError={(e) => {
-                // Fallback to Icon if image fails
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerHTML = '<div class="bg-indigo-600 p-2.5 rounded-xl"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M12 4.5V11m0 0l-1.5-1.5M12 11l1.5-1.5M4 12V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M4 12h16"></path></svg></div>';
-              }}
             />
           </div>
           <h1 className="font-bold text-2xl tracking-tighter text-white">AutoThinker X</h1>
@@ -532,7 +577,7 @@ export default function App() {
                     Back to Laboratory
                   </button>
                   <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Gemini 2.0 Flash</span>
+                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Gemini 2.0 Flash Lite</span>
                     <button 
                       onClick={() => handleGenerate()}
                       disabled={loading}
