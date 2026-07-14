@@ -50,7 +50,6 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 type ViewMode = 'dashboard' | 'generate' | 'history' | 'view';
 
-// API client for Groq Gateway
 const api = axios.create({
   baseURL: window.location.origin
 });
@@ -83,13 +82,11 @@ export default function App() {
       alert("Voice input is not supported in your browser.");
       return;
     }
-    
     // @ts-ignore
     const recognition = new window.webkitSpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
-
     recognition.onstart = () => setIsListening(true);
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
@@ -98,7 +95,6 @@ export default function App() {
     };
     recognition.onerror = () => setIsListening(false);
     recognition.onend = () => setIsListening(false);
-    
     recognition.start();
   };
 
@@ -136,62 +132,21 @@ export default function App() {
     if (!idea.trim()) return;
     setLoading(true);
     setAgentLogs([]);
-    
     try {
-      setLoadingStep('Orchestrating AI Agents...');
-      addLog('Venture Architect', `Initializing multi-agent chain for idea: "${idea}"`);
+      setLoadingStep('Orchestrating Multi-Agent Chain...');
+      addLog('Venture Architect', `Initializing engine for: "${idea}"`);
       
-      const systemPrompt = `You are AutoThinker X, an elite Venture Engine. 
-      Your task is to take a business idea and synthesize a complete startup blueprint.
-      Branding style: ${branding}.
-      
-      You must output ONLY valid JSON that strictly adheres to this schema:
-      {
-        "name": "Startup Name",
-        "tagline": "A punchy, memorable tagline",
-        "pitch": "A compelling one-sentence elevator pitch",
-        "branding": "${branding}", 
-        "value_proposition": { "pains": "string", "gains": "string", "jobs": "string" },
-        "customer_profiles": [{ "name": "string", "pain_points": ["string"], "motivations": ["string"], "demographics": "string" }],
-        "swot": { "strengths": "string", "weaknesses": "string", "opportunities": "string", "threats": "string" },
-        "competitors": [{ "name": "string", "advantage": "string", "gap": "string" }],
-        "marketing": {
-          "funnel_strategy": "string",
-          "ads_copy": { "facebook": "string", "google": "string" },
-          "lead_magnet": { "title": "string", "description": "string", "tripwire_offer": "string" },
-          "email_sequence": [ { "subject": "string", "body": "string" } ],
-          "social_posts": ["string"]
-        },
-        "roadmap": [ { "phase": 1, "title": "string", "description": "string" } ],
-        "execution_plan": [ { "step": 1, "title": "string", "description": "string" } ],
-        "one_pager": "Complete executive summary / one-pager text",
-        "landing_copy": { "hero_headline": "string", "hero_subheadline": "string", "cta_text": "string" }
-      }`;
-
-      const response = await api.post('/api/chat', {
-        message: `Idea: ${idea}`,
-        systemPrompt: systemPrompt
-      });
-
-      const responseText = response.data.content;
-      // Extract JSON if model wraps it in markdown blocks
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : responseText;
-      
-      const newBlueprint: Blueprint = JSON.parse(jsonString);
+      const response = await api.post('/api/chat', { idea, branding });
+      const newBlueprint: Blueprint = response.data;
       
       const finalLogs = [
-        { agent: 'Venture Architect', thought: 'Analyzing market gaps and value prop...', timestamp: new Date().toLocaleTimeString() },
-        { agent: 'Growth Marketing', thought: 'Developing acquisition funnel and ad copy...', timestamp: new Date().toLocaleTimeString() },
-        { agent: 'Synthesis Engine', thought: 'Consolidating agent outputs into blueprint...', timestamp: new Date().toLocaleTimeString() },
-        { agent: 'System', thought: 'Blueprint finalized. Synchronizing to cloud storage.', timestamp: new Date().toLocaleTimeString() }
+        { agent: 'Venture Architect', thought: 'Analyzing core strategy...', timestamp: new Date().toLocaleTimeString() },
+        { agent: 'Market Intelligence', thought: 'Scanning competitors...', timestamp: new Date().toLocaleTimeString() },
+        { agent: 'Growth Marketing', thought: 'Synthesizing funnel...', timestamp: new Date().toLocaleTimeString() },
+        { agent: 'Synthesis Engine', thought: 'Blueprint finalized and verified.', timestamp: new Date().toLocaleTimeString() }
       ];
 
-      const blueprintWithLogs: Blueprint = {
-        ...newBlueprint,
-        agent_logs: finalLogs
-      };
-      
+      const blueprintWithLogs: Blueprint = { ...newBlueprint, agent_logs: finalLogs };
       setBlueprint(blueprintWithLogs);
       
       const path = "blueprints";
@@ -209,7 +164,7 @@ export default function App() {
       setView('view');
     } catch (error: any) {
       console.error("Generation failed:", error);
-      alert(error.response?.data?.error || "Failed to generate blueprint. Please try again.");
+      alert(error.response?.data?.error || "AI Service Unavailable. Check logs.");
     } finally {
       setLoading(false);
       setLoadingStep('');
@@ -232,29 +187,15 @@ export default function App() {
     if (!blueprint || !blueprint.id) return;
     setIsGeneratingDeck(true);
     try {
-      const systemPrompt = `You are a startup fundraising expert. Based on the business blueprint, generate a professional 7-slide pitch deck. Output ONLY valid JSON array of slide objects.
-      JSON format:
-      [
-        { "title": "Slide Title", "content": "Slide content...", "visual_cue": "Visual description..." }
-      ]`;
-
-      const response = await api.post('/api/chat', {
-        message: `Blueprint: ${JSON.stringify(blueprint)}`,
-        systemPrompt: systemPrompt
-      });
-
-      const responseText = response.data.content;
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      const jsonString = jsonMatch ? jsonMatch[0] : responseText;
-      const slides = JSON.parse(jsonString);
-
+      const response = await api.post('/api/deck', { blueprint });
+      const slides = response.data;
       const updatedBlueprint = { ...blueprint, pitch_deck: slides };
       await updateDoc(doc(db, "blueprints", blueprint.id), { pitch_deck: slides });
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
     } catch (error) {
       console.error("Deck generation failed:", error);
-      alert("Failed to create pitch deck. Please try again.");
+      alert("Failed to create pitch deck.");
     } finally {
       setIsGeneratingDeck(false);
     }
@@ -264,29 +205,15 @@ export default function App() {
     if (!blueprint || !blueprint.id) return;
     setIsFindingFunding(true);
     try {
-      const systemPrompt = `You are a venture capital researcher. Based on the blueprint, find 4-5 relevant funding opportunities. Output ONLY valid JSON array.
-      JSON format:
-      [
-        { "name": "Name", "type": "hackathon|cohort|grant|vc", "description": "Short description", "link": "https://example.com", "relevance": "Why this fits" }
-      ]`;
-
-      const response = await api.post('/api/chat', {
-        message: `Business Idea: ${blueprint.pitch}`,
-        systemPrompt: systemPrompt
-      });
-
-      const responseText = response.data.content;
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      const jsonString = jsonMatch ? jsonMatch[0] : responseText;
-      const opps = JSON.parse(jsonString);
-
+      const response = await api.post('/api/funding', { blueprint });
+      const opps = response.data;
       const updatedBlueprint = { ...blueprint, funding_opportunities: opps };
       await updateDoc(doc(db, "blueprints", blueprint.id), { funding_opportunities: opps });
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
     } catch (error) {
       console.error("Funding search failed:", error);
-      alert("Failed to find funding opportunities. Please try again.");
+      alert("Failed to find funding opportunities.");
     } finally {
       setIsFindingFunding(false);
     }
@@ -297,36 +224,15 @@ export default function App() {
       <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col p-6 space-y-8 print:hidden">
         <div className="flex items-center gap-3 px-2">
           <div className="bg-white/5 p-1 rounded-xl shadow-lg border border-white/10">
-            <img 
-              src="/logo.png" 
-              alt="AutoThinker X Logo" 
-              className="w-10 h-10 object-contain rounded-lg"
-            />
+            <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain rounded-lg" />
           </div>
           <h1 className="font-bold text-2xl tracking-tighter text-white">AutoThinker X</h1>
         </div>
-
         <nav className="flex-1 space-y-2">
-          <NavItem 
-            icon={<Sparkles size={20} />} 
-            label="Gen Engine" 
-            active={view === 'generate' || view === 'view'} 
-            onClick={() => { setView('generate'); setBlueprint(null); }} 
-          />
-          <NavItem 
-            icon={<LayoutDashboard size={20} />} 
-            label="Blueprints" 
-            active={view === 'dashboard'} 
-            onClick={() => setView('dashboard')} 
-          />
-          <NavItem 
-            icon={<History size={20} />} 
-            label="Agent Logs" 
-            active={view === 'history'} 
-            onClick={() => setView('history')} 
-          />
+          <NavItem icon={<Sparkles size={20} />} label="Gen Engine" active={view === 'generate' || view === 'view'} onClick={() => { setView('generate'); setBlueprint(null); }} />
+          <NavItem icon={<LayoutDashboard size={20} />} label="Blueprints" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+          <NavItem icon={<History size={20} />} label="Agent Logs" active={view === 'history'} onClick={() => setView('history')} />
         </nav>
-
         <div className="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 space-y-4">
           <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Agent Network (Groq Powered)</p>
           <div className="space-y-3">
@@ -336,9 +242,7 @@ export default function App() {
             <StatusItem label="Asset Specialist" online={true} />
             <StatusItem label="Synthesis Engine" online={true} />
           </div>
-          <div className="pt-2 border-t border-slate-700/50">
-            <p className="text-[10px] text-indigo-400 font-bold">ALL SYSTEMS SYNCED</p>
-          </div>
+          <div className="pt-2 border-t border-slate-700/50"><p className="text-[10px] text-indigo-400 font-bold">ALL SYSTEMS SYNCED</p></div>
         </div>
       </aside>
 
@@ -346,43 +250,17 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <AnimatePresence mode="wait">
             {view === 'generate' && (
-              <motion.div 
-                key="generate"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-col items-center justify-center min-h-[80vh] space-y-12"
-              >
+              <motion.div key="generate" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center justify-center min-h-[80vh] space-y-12">
                 <div className="text-center space-y-6">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    <Zap size={14} /> Groq Llama 3 Intelligence Live
-                  </div>
-                  <h2 className="text-6xl font-black text-white tracking-tight leading-none">
-                    From Idea to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500">Execution.</span>
-                  </h2>
-                  <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
-                    Enter your vision below. Our multi-agent Groq network will collaborate to architect your business strategy and launch roadmap.
-                  </p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2"><Zap size={14} /> Groq Llama 3 Intelligence Live</div>
+                  <h2 className="text-6xl font-black text-white tracking-tight leading-none">From Idea to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500">Execution.</span></h2>
+                  <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">Enter your vision below. Our multi-agent Groq network will collaborate to architect your business strategy and launch roadmap.</p>
                 </div>
-
                 <div className="w-full max-w-3xl relative">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-20 transition duration-1000"></div>
                   <div className="relative flex flex-col bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-700/50 p-2 shadow-2xl">
-                    <div className="relative">
-                      <textarea 
-                        placeholder="e.g. A decentralised coffee supply chain tracking tool using blockchain and IoT for fair trade verification..."
-                        value={idea}
-                        onChange={(e) => setIdea(e.target.value)}
-                        className="w-full bg-transparent border-none focus:ring-0 p-8 min-h-[200px] text-xl resize-none placeholder:text-gray-700 font-light"
-                      />
-                      <button 
-                        onClick={startVoiceInput}
-                        className={`absolute top-8 right-8 p-3 rounded-2xl border transition-all ${isListening ? 'bg-red-500/20 border-red-500 text-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800/50 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-800'}`}
-                        title="Voice Input"
-                      >
-                        <Zap className={isListening ? 'animate-pulse' : ''} size={20} />
-                      </button>
-                    </div>
+                    <textarea placeholder="e.g. A decentralised coffee supply chain tracking tool..." value={idea} onChange={(e) => setIdea(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-8 min-h-[200px] text-xl resize-none placeholder:text-gray-700 font-light" />
+                    <button onClick={startVoiceInput} className={`absolute top-8 right-8 p-3 rounded-2xl border transition-all ${isListening ? 'bg-red-500/20 border-red-500 text-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800/50 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-800'}`}><Zap className={isListening ? 'animate-pulse' : ''} size={20} /></button>
                     <div className="flex justify-between items-center px-6 pb-6 pt-2">
                        <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -390,189 +268,51 @@ export default function App() {
                             <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Market Alignment</span>
                           </div>
                           <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700/50 w-fit">
-                            <button 
-                              onClick={() => setBranding('tech-bold')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'tech-bold' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                              Tech Bold
-                            </button>
-                            <button 
-                              onClick={() => setBranding('corporate-clean')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'corporate-clean' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                              Corporate
-                            </button>
-                            <button 
-                              onClick={() => setBranding('playful-modern')}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'playful-modern' ? 'bg-pink-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                              Playful
-                            </button>
+                            <button onClick={() => setBranding('tech-bold')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'tech-bold' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Tech Bold</button>
+                            <button onClick={() => setBranding('corporate-clean')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'corporate-clean' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Corporate</button>
+                            <button onClick={() => setBranding('playful-modern')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'playful-modern' ? 'bg-pink-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Playful</button>
                           </div>
                        </div>
-                      <button 
-                        onClick={handleGenerate}
-                        disabled={loading || !idea.trim()}
-                        className="btn btn-primary px-10 py-4 rounded-2xl flex items-center gap-3 text-lg group"
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="animate-spin" size={24} />
-                            <span className="animate-pulse">{loadingStep || 'Thinking...'}</span>
-                          </>
-                        ) : (
-                          <>
-                            Generate Sprint
-                            <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
-                          </>
-                        )}
-                      </button>
+                      <button onClick={handleGenerate} disabled={loading || !idea.trim()} className="btn btn-primary px-10 py-4 rounded-2xl flex items-center gap-3 text-lg group">{loading ? <><Loader2 className="animate-spin" size={24} /><span className="animate-pulse">{loadingStep || 'Thinking...'}</span></> : <>Generate Sprint<ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" /></>}</button>
                     </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-12 w-full max-w-4xl text-center">
-                  <div className="space-y-2">
-                    <div className="text-indigo-400 font-bold">Concept</div>
-                    <p className="text-sm text-gray-500">Idea expansion & feature scoping</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-purple-400 font-bold">Strategy</div>
-                    <p className="text-sm text-gray-500">SWOT & market positioning</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-pink-400 font-bold">Execution</div>
-                    <p className="text-sm text-gray-500">3-phase roadmap & steps</p>
                   </div>
                 </div>
               </motion.div>
             )}
 
             {view === 'view' && blueprint && (
-              <motion.div 
-                key="view"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="pb-20"
-              >
+              <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20">
                 <div className="flex justify-between items-center mb-12">
-                  <button 
-                    onClick={() => setView('generate')}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors py-2"
-                  >
-                    <ArrowRight size={20} className="rotate-180" />
-                    Back to Laboratory
-                  </button>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Llama 3 70B (Groq)</span>
-                    <button 
-                      onClick={() => handleGenerate()}
-                      disabled={loading}
-                      className="btn btn-secondary py-2 px-4 text-xs font-bold"
-                    >
-                      <RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} /> Re-Think
-                    </button>
-                  </div>
+                  <button onClick={() => setView('generate')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors py-2"><ArrowRight size={20} className="rotate-180" />Back to Laboratory</button>
+                  <div className="flex items-center gap-4"><span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Llama 3 70B (Groq)</span><button onClick={() => handleGenerate()} disabled={loading} className="btn btn-secondary py-2 px-4 text-xs font-bold"><RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} /> Re-Think</button></div>
                 </div>
-                <BlueprintView 
-                  blueprint={blueprint} 
-                  onGenerateDeck={handleGeneratePitchDeck}
-                  onFindFunding={handleFindFunding}
-                  onPrint={handlePrint}
-                  isGeneratingDeck={isGeneratingDeck}
-                  isFindingFunding={isFindingFunding}
-                />
+                <BlueprintView blueprint={blueprint} onGenerateDeck={handleGeneratePitchDeck} onFindFunding={handleFindFunding} onPrint={handlePrint} isGeneratingDeck={isGeneratingDeck} isFindingFunding={isFindingFunding} />
               </motion.div>
             )}
 
             {(view === 'dashboard' || view === 'history') && (
-              <motion.div 
-                key="history"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-10"
-              >
+              <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h2 className="text-4xl font-black text-white tracking-tight">Project Blueprints</h2>
-                    <p className="text-gray-500 mt-1">Manage and evolve your generated architectures.</p>
-                  </div>
-                  
+                  <div><h2 className="text-4xl font-black text-white tracking-tight">Project Blueprints</h2><p className="text-gray-500 mt-1">Manage and evolve your generated architectures.</p></div>
                   <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:flex-none">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                      <input 
-                        type="text" 
-                        placeholder="Search workspace..." 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-600 outline-none transition-all"
-                      />
-                    </div>
-                    <button onClick={fetchHistory} className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-gray-400 hover:text-white transition-colors">
-                      <RefreshCw size={20} className={historyLoading ? "animate-spin" : ""} />
-                    </button>
-                    <button 
-                      onClick={() => setView('generate')}
-                      className="btn btn-primary py-2.5 px-5 rounded-xl text-sm flex items-center gap-2"
-                    >
-                      <Plus size={18} /> New
-                    </button>
+                    <div className="relative flex-1 md:flex-none"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} /><input type="text" placeholder="Search workspace..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-600 outline-none transition-all" /></div>
+                    <button onClick={fetchHistory} className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-gray-400 hover:text-white transition-colors"><RefreshCw size={20} className={historyLoading ? "animate-spin" : ""} /></button>
+                    <button onClick={() => setView('generate')} className="btn btn-primary py-2.5 px-5 rounded-xl text-sm flex items-center gap-2"><Plus size={18} /> New</button>
                   </div>
                 </div>
-
                 {historyLoading ? (
-                  <div className="flex flex-col justify-center items-center h-96 space-y-4">
-                    <Loader2 className="animate-spin text-indigo-500" size={56} />
-                    <p className="text-gray-500 animate-pulse font-medium">Retrieving workspace data...</p>
-                  </div>
+                  <div className="flex flex-col justify-center items-center h-96 space-y-4"><Loader2 className="animate-spin text-indigo-500" size={56} /><p className="text-gray-500 animate-pulse font-medium">Retrieving workspace data...</p></div>
                 ) : filteredHistory.length === 0 ? (
-                  <div className="card-base text-center py-32 bg-slate-900/30 border-dashed border-slate-800">
-                    <div className="bg-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                      <BrainCircuit className="text-gray-600" size={32} />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-300 mb-2">No Blueprints Found</h3>
-                    <p className="text-gray-500 max-w-sm mx-auto">Either you haven't generated any plans yet, or your search didn't match any results.</p>
-                    <button 
-                      onClick={() => setView('generate')}
-                      className="mt-8 text-indigo-400 font-bold flex items-center gap-2 mx-auto hover:text-indigo-300 transition-colors"
-                    >
-                      New Generation <ArrowRight size={18} />
-                    </button>
-                  </div>
+                  <div className="card-base text-center py-32 bg-slate-900/30 border-dashed border-slate-800"><div className="bg-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"><BrainCircuit className="text-gray-600" size={32} /></div><h3 className="text-xl font-bold text-gray-300 mb-2">No Blueprints Found</h3><p className="text-gray-500 max-w-sm mx-auto">Start generating to see your plans here.</p></div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredHistory.map((bp) => (
-                      <motion.div 
-                        key={bp.id}
-                        layoutId={bp.id}
-                        className="card-base bg-slate-900/50 hover:bg-slate-900 hover:border-indigo-500/50 cursor-pointer group relative overflow-hidden"
-                        onClick={() => { setBlueprint(bp); setView('view'); }}
-                      >
-                        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(bp.id!); }}
-                            className="p-1.5 text-gray-600 hover:text-red-500 bg-slate-800/50 rounded-lg backdrop-blur-md"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-
+                      <motion.div key={bp.id} layoutId={bp.id} className="card-base bg-slate-900/50 hover:bg-slate-900 hover:border-indigo-500/50 cursor-pointer group relative overflow-hidden" onClick={() => { setBlueprint(bp); setView('view'); }}>
+                        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); handleDelete(bp.id!); }} className="p-1.5 text-gray-600 hover:text-red-500 bg-slate-800/50 rounded-lg backdrop-blur-md"><Trash2 size={16} /></button></div>
                         <div className="space-y-4">
-                          <div className="flex items-center gap-2">
-                             <Sparkles size={16} className="text-indigo-500" />
-                             <h3 className="font-bold text-lg text-white group-hover:text-indigo-400 transition-colors line-clamp-1">{bp.name}</h3>
-                          </div>
-                          
-                          <p className="text-sm text-gray-500 line-clamp-3 min-h-[4.5rem] leading-relaxed">
-                            {bp.pitch}
-                          </p>
-
-                          <div className="flex justify-between items-center text-[10px] text-gray-600 border-t border-slate-800 mt-6 pt-4">
-                             <span className="flex items-center gap-1"><History size={12} /> {new Date(bp.updatedAt!).toLocaleDateString()}</span>
-                             <span className="font-black uppercase tracking-widest text-indigo-500/80 group-hover:text-indigo-400">Expand Blueprint</span>
-                          </div>
+                          <div className="flex items-center gap-2"><Sparkles size={16} className="text-indigo-500" /><h3 className="font-bold text-lg text-white group-hover:text-indigo-400 transition-colors line-clamp-1">{bp.name}</h3></div>
+                          <p className="text-sm text-gray-500 line-clamp-3 min-h-[4.5rem] leading-relaxed">{bp.pitch}</p>
+                          <div className="flex justify-between items-center text-[10px] text-gray-600 border-t border-slate-800 mt-6 pt-4"><span><History size={12} /> {new Date(bp.updatedAt!).toLocaleDateString()}</span><span className="font-black uppercase tracking-widest text-indigo-500/80 group-hover:text-indigo-400">Expand Blueprint</span></div>
                         </div>
                       </motion.div>
                     ))}
@@ -587,20 +327,9 @@ export default function App() {
   );
 }
 
-
 function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
-    <button 
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
-        active 
-          ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-600/20' 
-          : 'text-gray-500 hover:text-gray-200 hover:bg-slate-800'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
+    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${active ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-600/20' : 'text-gray-500 hover:text-gray-200 hover:bg-slate-800'}`}>{icon}{label}</button>
   );
 }
 

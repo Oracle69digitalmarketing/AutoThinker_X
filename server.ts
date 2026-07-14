@@ -3,16 +3,12 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
-import Groq from "groq-sdk";
 import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
+import * as AgentService from "./src/services/agents";
 
 dotenv.config();
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
 
 async function startServer() {
   const app = express();
@@ -21,47 +17,46 @@ async function startServer() {
 
   // Security and performance middleware
   app.use(helmet({
-    contentSecurityPolicy: false, // Disable for Vite dev HMR if needed, or configure properly
+    contentSecurityPolicy: false,
   }));
   app.use(compression());
   app.use(morgan("dev"));
   app.use(cors());
   app.use(express.json());
 
-  // AI Gateway Endpoint
+  // AI Orchestration Endpoints
   app.post("/api/chat", async (req: Request, res: Response) => {
     try {
-      const { message, history, systemPrompt } = req.body;
-
-      if (!message) {
-        return res.status(400).json({ error: "Message is required" });
-      }
-
-      const completion = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt || "You are AutoThinker X, a sophisticated AI assistant.",
-          },
-          ...(history || []),
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.7,
-        max_tokens: 4096,
-      });
-
-      const responseContent = completion.choices[0]?.message?.content || "";
-      res.json({ content: responseContent });
+      const { idea, branding } = req.body;
+      if (!idea) return res.status(400).json({ error: "Idea is required" });
+      
+      const blueprint = await AgentService.generateStartupBlueprint(idea, branding || 'tech-bold');
+      res.json(blueprint);
     } catch (error: any) {
-      console.error("Groq API Error:", error);
-      res.status(500).json({ 
-        error: "AI Service Error", 
-        details: error.message 
-      });
+      console.error("Agent Orchestration Error:", error);
+      res.status(500).json({ error: "AI Service Error", details: error.message });
+    }
+  });
+
+  app.post("/api/deck", async (req: Request, res: Response) => {
+    try {
+      const { blueprint } = req.body;
+      const deck = await AgentService.generatePitchDeck(blueprint);
+      res.json(deck);
+    } catch (error: any) {
+      console.error("Pitch Deck Generation Error:", error);
+      res.status(500).json({ error: "Deck Service Error", details: error.message });
+    }
+  });
+
+  app.post("/api/funding", async (req: Request, res: Response) => {
+    try {
+      const { blueprint } = req.body;
+      const funding = await AgentService.findFunding(blueprint);
+      res.json(funding);
+    } catch (error: any) {
+      console.error("Funding Search Error:", error);
+      res.status(500).json({ error: "Funding Service Error", details: error.message });
     }
   });
 
@@ -70,7 +65,7 @@ async function startServer() {
     res.json({ status: "ok", environment: process.env.NODE_ENV });
   });
 
-  // Vite middleware for development vs static for production
+  // Vite/Static serving
   if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
