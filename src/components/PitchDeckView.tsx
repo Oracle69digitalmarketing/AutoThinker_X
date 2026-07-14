@@ -55,25 +55,12 @@ export const PitchDeckView: React.FC<PitchDeckViewProps> = ({ slides }) => {
               {slides[currentSlide].title}
             </h4>
             
-            <div className="max-w-2xl text-left space-y-4">
-              {Array.isArray(slides[currentSlide].content) ? (
-                <ul className="space-y-2">
-                  {slides[currentSlide].content.map((item, i) => (
-                    <li key={i} className="text-lg text-gray-300 flex items-start gap-3">
-                      <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 mt-2.5 flex-shrink-0"></div>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-xl text-gray-300 leading-relaxed font-light text-center">
-                  {slides[currentSlide].content}
-                </div>
-              )}
+            <div className="max-w-2xl text-xl text-gray-300 leading-relaxed font-light">
+              {slides[currentSlide].content}
             </div>
 
-            <div className="mt-12 text-[10px] text-indigo-400 font-bold uppercase tracking-widest border-t border-slate-800 pt-6 w-full opacity-60">
-              Visual Strategy: {slides[currentSlide].visual_suggestion || "Professional data visualization"}
+            <div className="mt-12 text-xs text-indigo-400/60 font-medium italic border-t border-slate-800 pt-6 w-full">
+              {slides[currentSlide].visual_cue}
             </div>
           </motion.div>
         </AnimatePresence>

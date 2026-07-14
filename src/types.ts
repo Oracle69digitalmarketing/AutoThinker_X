@@ -2,97 +2,144 @@ export interface AgentLog {
   agent: string;
   status: 'completed' | 'pending' | 'failed';
   duration: string;
-  provider?: string;
-  tokens?: number;
-  confidence?: number;
 }
 
-export interface PitchSlide {
-  number: number;
-  title: string;
-  content: string[];
-  visual_suggestion?: string;
+export interface VentureDetails {
+  startup_name: string;
+  tagline: string;
+  elevator_pitch: string;
+  mission: string;
+  vision: string;
+  problem: string;
+  solution: string;
+  business_model: string;
 }
 
-export interface VentureBlueprint {
-  id?: string;
-  venture: {
+export interface CustomerIntelligence {
+  icp: string;
+  personas: {
     name: string;
-    tagline: string;
-    elevator_pitch: string;
-    mission: string;
-    vision: string;
-    problem: string;
-    solution: string;
-  };
-  customers: {
-    icp: string;
-    personas: any[];
-    jtbd: string[];
-    adoption_curve: string;
-  };
-  market: {
-    tam: any;
-    sam: any;
-    som: any;
-    trends: string[];
-    opportunities: string[];
-    porter_five: any;
-  };
-  competition: {
-    matrix: any[];
-    market_gap: string;
-  };
-  product: {
-    mvp_features: string[];
-    unique_selling_point: string;
-    user_journey: string[];
-  };
-  technology: {
-    stack: any;
-    architecture_pattern: string;
-    security_measures: string[];
-    scalability_plan: string;
-  };
-  business_model: {
-    summary: string;
-    revenue_streams: string[];
-    pricing_strategy: string;
-  };
-  marketing: {
-    gtm_strategy: string;
-    channels: string[];
-    funnel: any;
-    ad_copy: any;
-  };
-  financials: {
-    unit_economics: any;
-    burn_rate_estimate: string;
-    gross_margin: string;
-  };
-  funding: {
-    sources: any[];
-    funding_ask: string;
-    use_of_funds: string[];
-  };
-  execution: {
-    roadmap: string[];
-    milestones: string[];
-  };
-  risk: {
-    swot: any;
-    risks: any;
-    mitigation_strategies: string[];
-  };
-  metrics?: {
-    total_tokens: number;
-    avg_confidence: number;
-    generation_time: number;
-  };
-  appendix?: any;
+    role: string;
+    pain_points: string[];
+    motivations: string[];
+    demographics?: string;
+  }[];
+  jobs_to_be_done: string[];
+  pain_points: string[];
+  customer_gains: string[];
+  adoption_curve?: string;
+}
+
+export interface MarketIntelligence {
+  tam: string;
+  sam: string;
+  som: string;
+  industry_trends: string[];
+  opportunities: string[];
+  porter_five?: any;
+}
+
+export interface CompetitorIntelligence {
+  name: string;
+  strengths: string;
+  weaknesses: string;
+  market_gaps: string;
+  strength?: string;
+  weakness?: string;
+  pricing?: string;
+  differentiator?: string;
+}
+
+export interface ProductStrategy {
+  mvp: string;
+  core_features: string[];
+  product_roadmap: string[];
+  mvp_features?: string[];
+  unique_selling_point?: string;
+  user_journey?: string[];
+}
+
+export interface TechnologyArchitecture {
+  frontend: string;
+  backend: string;
+  database: string;
+  ai_stack: string;
+  deployment: string;
+  stack?: any;
+  architecture_pattern?: string;
+  security_measures?: string[];
+  scalability_plan?: string;
+}
+
+export interface MarketingStrategy {
+  positioning: string;
+  gtm_strategy: string;
+  funnel: string;
+  landing_page_messaging: string;
+  email_sequence: {
+    subject: string;
+    body: string;
+  }[];
+  social_content: string[];
+  channels?: string[];
+  ad_copy?: any;
+}
+
+export interface FinanceStrategy {
+  revenue_streams: string[];
+  pricing: string;
+  cost_structure: string;
+  financial_assumptions: string;
+  revenue_model?: any;
+  unit_economics?: any;
+  burn_rate_estimate?: string;
+  gross_margin?: string;
+}
+
+export interface FundingOpportunity {
+  name: string;
+  type: string;
+  description: string;
+  relevance: string;
+  sources?: any[];
+  funding_ask?: string;
+  use_of_funds?: string[];
+}
+
+export interface RoadmapPhase {
+  phase: string;
+  tasks: string[];
+  milestones?: string[];
+}
+
+export interface Blueprint {
+  id?: string;
+  name: string;
+  tagline: string;
+  pitch: string;
+  branding?: 'tech-bold' | 'corporate-clean' | 'playful-modern';
+  
+  overview: VentureDetails;
+  venture: VentureDetails;
+  customers: CustomerIntelligence;
+  market: MarketIntelligence;
+  competitors: CompetitorIntelligence[];
+  product: ProductStrategy;
+  technology: TechnologyArchitecture;
+  marketing: MarketingStrategy;
+  finance: FinanceStrategy;
+  funding: FundingOpportunity[];
+  roadmap: RoadmapPhase[];
   agent_logs: AgentLog[];
-  createdAt?: any;
+  
+  // New backend fields (VOS v3)
+  business_model?: any;
+  financials?: any;
+  competition?: any;
+  risk?: any;
+  execution?: any;
+  metrics?: any;
+
   updatedAt?: any;
-  branding?: string;
-  idea?: string;
+  status?: string;
 }
