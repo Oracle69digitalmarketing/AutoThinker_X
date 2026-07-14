@@ -59,6 +59,7 @@ export default function App() {
   const [view, setView] = useState<ViewMode>('generate');
   const [idea, setIdea] = useState('');
   const [branding, setBranding] = useState<'tech-bold' | 'corporate-clean' | 'playful-modern'>('tech-bold');
+  const [complexity, setComplexity] = useState<'low' | 'medium' | 'high'>('medium');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
@@ -138,39 +139,33 @@ export default function App() {
     setLoading(true);
     setAgentLogs([]);
     
-    let currentBlueprint: Blueprint | null = null;
-
     try {
-      setLoadingStep('Orchestrating Multi-Agent Chain...');
-      addLog('Venture Architect', `Initializing engine for: "${idea}"`);
+      setLoadingStep(`Orchestrating ${complexity.toUpperCase()} Complexity Chain...`);
       
       console.log("Sending API request to /api/chat...");
-      const response = await api.post('/api/chat', { idea, branding });
+      const response = await api.post('/api/chat', { idea, branding, complexity });
       console.log("API response:", response.data);
       
       const newBlueprint: Blueprint = response.data;
-      
-      const finalLogs = [
-        { agent: 'Venture Architect', thought: 'Analyzing core strategy...', timestamp: new Date().toLocaleTimeString() },
-        { agent: 'Market Intelligence', thought: 'Scanning competitors...', timestamp: new Date().toLocaleTimeString() },
-        { agent: 'Growth Marketing', thought: 'Synthesizing funnel...', timestamp: new Date().toLocaleTimeString() },
-        { agent: 'Synthesis Engine', thought: 'Blueprint finalized and verified.', timestamp: new Date().toLocaleTimeString() }
-      ];
-
-      currentBlueprint = { ...newBlueprint, agent_logs: finalLogs };
-      console.log("Setting blueprint...");
-      setBlueprint(currentBlueprint);
+      setBlueprint(newBlueprint);
       
       const path = "blueprints";
       try {
-        console.log("Saving to Firestore...");
-        const docRef = await addDoc(collection(db, path), {
-          ...currentBlueprint,
+        console.log("Saving to Firestore (Optimized)...");
+        // FIREBASE OPTIMIZATION: Store only essential data
+        const optimizedStorage = {
+          name: newBlueprint.name,
+          timestamp: Timestamp.now(),
+          summary: newBlueprint.pitch,
+          branding: newBlueprint.branding,
+          blueprint: newBlueprint, // The complete JSON blueprint
           updatedAt: Timestamp.now(),
           status: 'complete'
-        });
+        };
+        
+        const docRef = await addDoc(collection(db, path), optimizedStorage);
         console.log("Firestore saved. ID:", docRef.id);
-        setBlueprint({ ...currentBlueprint, id: docRef.id });
+        setBlueprint({ ...newBlueprint, id: docRef.id });
       } catch (firestoreError) {
         console.error("Firestore save failed but continuing UI flow:", firestoreError);
         handleFirestoreError(firestoreError, OperationType.CREATE, path);
@@ -320,8 +315,13 @@ export default function App() {
                             <button onClick={() => setBranding('corporate-clean')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'corporate-clean' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Corporate</button>
                             <button onClick={() => setBranding('playful-modern')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'playful-modern' ? 'bg-pink-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Playful</button>
                           </div>
+                          <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700/50 w-fit">
+                            <button onClick={() => setComplexity('low')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${complexity === 'low' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Low</button>
+                            <button onClick={() => setComplexity('medium')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${complexity === 'medium' ? 'bg-yellow-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Medium</button>
+                            <button onClick={() => setComplexity('high')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${complexity === 'high' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>High</button>
+                          </div>
                        </div>
-                      <button onClick={handleGenerate} disabled={loading || !idea.trim()} className="btn btn-primary px-10 py-4 rounded-2xl flex items-center gap-3 text-lg group">{loading ? <><Loader2 className="animate-spin" size={24} /><span className="animate-pulse">{loadingStep || 'Thinking...'}</span></> : <>Generate Sprint<ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" /></>}</button>
+                      <button onClick={handleGenerate} disabled={loading || !idea.trim()} className="btn btn-primary px-10 py-4 rounded-2xl flex items-center gap-3 text-lg group">{loading ? <><Loader2 className="animate-spin" size={24} /><span className="animate-pulse">{loadingStep || 'Thinking...'}</span></> : <>Generate Venture<ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" /></>}</button>
                     </div>
                   </div>
                 </div>

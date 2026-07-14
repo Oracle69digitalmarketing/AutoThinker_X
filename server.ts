@@ -27,10 +27,10 @@ async function startServer() {
   // AI Orchestration Endpoints
   app.post("/api/chat", async (req: Request, res: Response) => {
     try {
-      const { idea, branding } = req.body;
+      const { idea, branding, complexity } = req.body;
       if (!idea) return res.status(400).json({ error: "Idea is required" });
       
-      const blueprint = await AgentService.generateStartupBlueprint(idea, branding || 'tech-bold');
+      const blueprint = await AgentService.generateStartupBlueprint(idea, branding || 'tech-bold', complexity || 'medium');
       res.json(blueprint);
     } catch (error: any) {
       console.error("Agent Orchestration Error:", error);

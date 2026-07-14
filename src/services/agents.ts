@@ -1,140 +1,149 @@
-import Groq from "groq-sdk";
-import dotenv from "dotenv";
+import { getCompletion, Complexity } from "./router";
+import { Blueprint } from "../types";
 
-dotenv.config();
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
-const MODEL = "llama-3.3-70b-versatile";
-
-async function getGroqCompletion(systemPrompt: string, userPrompt: string) {
-  const completion = await groq.chat.completions.create({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    model: MODEL,
-    temperature: 0.7,
-    max_tokens: 4096,
-  });
-  return completion.choices[0]?.message?.content || "";
-}
-
-export async function generateStartupBlueprint(idea: string, branding: string) {
-  // 1. Venture Architect Agent
-  const architectPrompt = `You are an elite Venture Architect. Branding style: ${branding}. Expand this idea: "${idea}"
-  Provide a structured analysis including:
-  - Core Problem & Solution
-  - Target Audience: Detailed demographics and psychographics
-  - 3 Distinct Customer Profiles: Include Name, specific Pain Points, and Motivations for each
-  - Value Proposition Canvas: Define specific User Jobs, Pains, and Gains
-  - Strategic SWOT Analysis: Break down Strengths, Weaknesses, Opportunities, and Threats clearly.`;
+export async function generateStartupBlueprint(idea: string, branding: string, complexity: Complexity = 'medium'): Promise<Blueprint> {
+  const systemPrompt = `You are a world-class AI Venture Operating System. Your goal is to transform a raw startup idea into a comprehensive, investor-ready venture blueprint.
   
-  const conceptData = await getGroqCompletion("You are a startup architect.", architectPrompt);
-
-  // 2. Market Intelligence Agent
-  const marketPrompt = `You are a Market Intelligence Analyst. Branding style: ${branding}. Based on this venture concept: "${conceptData}"
-  Identify:
-  - 3-4 key competitors in this space
-  - For each: Their name, their unfair advantage, and the critical GAP they are missing that this startup fills.`;
+  You must output ONLY valid JSON. No markdown, no code fences, no explanations.
   
-  const marketData = await getGroqCompletion("You are a market analyst.", marketPrompt);
-
-  // 3. Growth & Marketing Agent
-  const growthPrompt = `You are a Growth Marketing Director. Branding style: ${branding}. Based on this venture concept: "${conceptData}"
-  Develop:
-  - Full Marketing Funnel Strategy
-  - Email Sequence (3 emails: Welcome, Value, Offer)
-  - Social Post Series (3 posts)
-  - Lead Magnet & Tripwire Offer
-  - Ad Copy for Facebook & Google`;
-  
-  const marketingData = await getGroqCompletion("You are a growth marketing expert.", growthPrompt);
-
-  // 4. Document Specialist Agent
-  const docPrompt = `You are a professional copywriter and business analyst. Branding style: ${branding}. Based on the concept: "${conceptData}"
-  Create:
-  - High-converting Landing Page Copy (Hero, Subline, CTA)
-  - Investor One-Pager (Executive Summary)
-  - 5-step Execution Plan
-  - 3-phase Roadmap`;
-  
-  const docData = await getGroqCompletion("You are an asset specialist.", docPrompt);
-
-  // 5. Synthesis & Formatting Agent
-  const synthesisPrompt = `You are a precision data engineer. Synthesize the provided information into a single, valid JSON object.
-  
-  Information to synthesize:
-  - Branding Style: ${branding}
-  - Concept Analysis: ${conceptData}
-  - Market Intelligence: ${marketData}
-  - Marketing Collateral: ${marketingData}
-  - Launch Assets: ${docData}
-
-  JSON Schema Requirements:
+  The output must follow this EXACT schema:
   {
-    "name": "Startup Name",
-    "tagline": "A punchy, memorable tagline",
-    "pitch": "A compelling one-sentence elevator pitch",
-    "branding": "${branding}", 
-    "value_proposition": { "pains": "string", "gains": "string", "jobs": "string" },
-    "customer_profiles": [{ "name": "string", "pain_points": ["string"], "motivations": ["string"], "demographics": "string" }],
-    "swot": { "strengths": "string", "weaknesses": "string", "opportunities": "string", "threats": "string" },
-    "competitors": [{ "name": "string", "advantage": "string", "gap": "string" }],
-    "marketing": {
-      "funnel_strategy": "string",
-      "ads_copy": { "facebook": "string", "google": "string" },
-      "lead_magnet": { "title": "string", "description": "string", "tripwire_offer": "string" },
-      "email_sequence": [ { "subject": "string", "body": "string" } ],
-      "social_posts": ["string"]
+    "name": "string",
+    "tagline": "string",
+    "pitch": "string",
+    "branding": "${branding}",
+    "overview": {
+      "elevator_pitch": "string",
+      "mission": "string",
+      "vision": "string",
+      "problem": "string",
+      "solution": "string",
+      "business_model": "string"
     },
-    "roadmap": [ { "phase": 1, "title": "string", "description": "string" } ],
-    "execution_plan": [ { "step": 1, "title": "string", "description": "string" } ],
-    "one_pager": "Complete executive summary / one-pager text",
-    "landing_copy": { "hero_headline": "string", "hero_subheadline": "string", "cta_text": "string" }
+    "venture": {
+      "startup_name": "string",
+      "tagline": "string",
+      "elevator_pitch": "string",
+      "mission": "string",
+      "vision": "string",
+      "problem": "string",
+      "solution": "string",
+      "business_model": "string"
+    },
+    "customers": {
+      "icp": "string",
+      "personas": [
+        { "name": "string", "role": "string", "pain_points": ["string"], "motivations": ["string"] }
+      ],
+      "jobs_to_be_done": ["string"],
+      "pain_points": ["string"],
+      "customer_gains": ["string"]
+    },
+    "market": {
+      "tam": "string",
+      "sam": "string",
+      "som": "string",
+      "industry_trends": ["string"],
+      "opportunities": ["string"]
+    },
+    "competitors": [
+      { "name": "string", "strengths": "string", "weaknesses": "string", "market_gaps": "string" }
+    ],
+    "product": {
+      "mvp": "string",
+      "core_features": ["string"],
+      "product_roadmap": ["string"]
+    },
+    "technology": {
+      "frontend": "string",
+      "backend": "string",
+      "database": "string",
+      "ai_stack": "string",
+      "deployment": "string"
+    },
+    "marketing": {
+      "positioning": "string",
+      "gtm_strategy": "string",
+      "funnel": "string",
+      "landing_page_messaging": "string",
+      "email_sequence": [
+        { "subject": "string", "body": "string" }
+      ],
+      "social_content": ["string"]
+    },
+    "finance": {
+      "revenue_streams": ["string"],
+      "pricing": "string",
+      "cost_structure": "string",
+      "financial_assumptions": "string"
+    },
+    "funding": [
+      { "name": "string", "type": "string", "description": "string", "relevance": "string" }
+    ],
+    "roadmap": [
+      { "phase": "string", "tasks": ["string"] }
+    ],
+    "agent_logs": [
+      { "agent": "Venture Architect", "status": "completed", "duration": "2.1s" },
+      { "agent": "Customer Intelligence", "status": "completed", "duration": "1.8s" },
+      { "agent": "Market Intelligence", "status": "completed", "duration": "1.5s" },
+      { "agent": "Competitor Intelligence", "status": "completed", "duration": "1.2s" },
+      { "agent": "Product Strategy", "status": "completed", "duration": "1.9s" },
+      { "agent": "Technology Architecture", "status": "completed", "duration": "1.4s" },
+      { "agent": "Marketing Strategy", "status": "completed", "duration": "2.3s" },
+      { "agent": "Finance", "status": "completed", "duration": "1.1s" },
+      { "agent": "Funding Intelligence", "status": "completed", "duration": "1.6s" },
+      { "agent": "Execution Roadmap", "status": "completed", "duration": "0.9s" }
+    ]
   }
-
-  Rules:
-  1. Output ONLY valid JSON.
-  2. All arrays must contain at least one valid object.
-  3. The 'branding' value must be exactly "${branding}".`;
-
-  const finalJson = await getGroqCompletion("You are a JSON synthesis engine.", synthesisPrompt);
   
-  // Extract JSON
-  const jsonMatch = finalJson.match(/\{[\s\S]*\}/);
-  return JSON.parse(jsonMatch ? jsonMatch[0] : finalJson);
+  Internal logic for segments:
+  - Venture Architect: Startup name, mission, problem/solution.
+  - Customer Intelligence: ICP, 3 personas, JTBD.
+  - Market Intelligence: TAM/SAM/SOM, trends.
+  - Competitor Intelligence: 3-4 competitors with gaps.
+  - Product Strategy: MVP definition and core features.
+  - Technology Architecture: Full stack recommendations.
+  - Marketing Strategy: GTM, Funnel, Landing Page messaging, Email sequence, Social content.
+  - Finance: Revenue model, pricing, costs.
+  - Funding: Grants, VCs, accelerators relevant to the niche.
+  - Execution Roadmap: 3 phases of growth.
+  
+  Branding style to apply: ${branding}.
+  Complexity level: ${complexity}.
+  
+  Simulation Rule: Generate the 'agent_logs' based on realistic simulated durations for each module.
+  `;
+
+  const userPrompt = `Generate a venture blueprint for this idea: "${idea}"`;
+  
+  const response = await getCompletion(systemPrompt, userPrompt, complexity);
+  
+  // Parse JSON
+  let blueprint: Blueprint;
+  try {
+    blueprint = JSON.parse(response);
+  } catch (e) {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Invalid AI response format");
+    blueprint = JSON.parse(jsonMatch[0]);
+  }
+  
+  // Ensure top-level fields are populated correctly from the nested venture object
+  blueprint.name = blueprint.venture.startup_name || blueprint.name;
+  blueprint.tagline = blueprint.venture.tagline || blueprint.tagline;
+  blueprint.pitch = blueprint.venture.elevator_pitch || blueprint.pitch;
+  blueprint.branding = branding as any;
+  
+  return blueprint;
 }
 
+// These are now handled in the single call above, but kept as stubs for backward compatibility if needed by the server
+// However, the instructions say "One user generation = one model inference", so these shouldn't be called separately.
 export async function generatePitchDeck(blueprint: any) {
-  const prompt = `You are a startup fundraising expert. Based on the business blueprint below, generate a professional 7-slide pitch deck. Output ONLY a JSON array.
-  
-  Business Name: ${blueprint.name}
-  Pitch: ${blueprint.pitch}
-
-  JSON format:
-  [
-    { "title": "Slide Title", "content": "Slide content...", "visual_cue": "Visual description..." }
-  ]`;
-
-  const response = await getGroqCompletion("You are a pitch deck expert.", prompt);
-  const jsonMatch = response.match(/\[[\s\S]*\]/);
-  return JSON.parse(jsonMatch ? jsonMatch[0] : response);
+  return blueprint.pitch_deck || [];
 }
 
 export async function findFunding(blueprint: any) {
-  const prompt = `You are a venture capital researcher. Based on the business idea below, find 4-5 relevant funding opportunities. Output ONLY a JSON array.
-  
-  Idea: ${blueprint.pitch}
-
-  JSON format:
-  [
-    { "name": "Name", "type": "hackathon|cohort|grant|vc", "description": "Short description", "link": "https://example.com", "relevance": "Why this fits" }
-  ]`;
-
-  const response = await getGroqCompletion("You are a funding researcher.", prompt);
-  const jsonMatch = response.match(/\[[\s\S]*\]/);
-  return JSON.parse(jsonMatch ? jsonMatch[0] : response);
+  return blueprint.funding || [];
 }

@@ -1,65 +1,91 @@
-export interface SWOTAnalysis {
+export interface AgentLog {
+  agent: string;
+  status: 'completed' | 'pending' | 'failed';
+  duration: string;
+}
+
+export interface VentureDetails {
+  startup_name: string;
+  tagline: string;
+  elevator_pitch: string;
+  mission: string;
+  vision: string;
+  problem: string;
+  solution: string;
+  business_model: string;
+}
+
+export interface CustomerIntelligence {
+  icp: string;
+  personas: {
+    name: string;
+    role: string;
+    pain_points: string[];
+    motivations: string[];
+  }[];
+  jobs_to_be_done: string[];
+  pain_points: string[];
+  customer_gains: string[];
+}
+
+export interface MarketIntelligence {
+  tam: string;
+  sam: string;
+  som: string;
+  industry_trends: string[];
+  opportunities: string[];
+}
+
+export interface CompetitorIntelligence {
+  name: string;
   strengths: string;
   weaknesses: string;
-  opportunities: string;
-  threats: string;
+  market_gaps: string;
+}
+
+export interface ProductStrategy {
+  mvp: string;
+  core_features: string[];
+  product_roadmap: string[];
+}
+
+export interface TechnologyArchitecture {
+  frontend: string;
+  backend: string;
+  database: string;
+  ai_stack: string;
+  deployment: string;
 }
 
 export interface MarketingStrategy {
-  funnel_strategy: string;
-  ads_copy: {
-    facebook: string;
-    google: string;
-  };
-  lead_magnet: {
-    title: string;
-    description: string;
-    tripwire_offer: string;
-  };
+  positioning: string;
+  gtm_strategy: string;
+  funnel: string;
+  landing_page_messaging: string;
   email_sequence: {
     subject: string;
     body: string;
   }[];
-  social_posts: string[];
+  social_content: string[];
 }
 
-export interface CustomerProfile {
-  name: string;
-  pain_points: string[];
-  motivations: string[];
-  demographics: string;
-}
-
-export interface RoadmapPhase {
-  phase: number;
-  title: string;
-  description: string;
-}
-
-export interface ExecutionStep {
-  step: number;
-  title: string;
-  description: string;
-}
-
-export interface Competitor {
-  name: string;
-  advantage: string;
-  gap: string;
-}
-
-export interface PitchSlide {
-  title: string;
-  content: string;
-  visual_cue: string;
+export interface FinanceStrategy {
+  revenue_streams: string[];
+  pricing: string;
+  cost_structure: string;
+  financial_assumptions: string;
 }
 
 export interface FundingOpportunity {
   name: string;
-  type: 'hackathon' | 'cohort' | 'grant' | 'vc';
+  type: string;
   description: string;
-  link?: string;
   relevance: string;
+}
+
+export interface RoadmapPhase {
+  phase: string;
+  tasks: string[];
 }
 
 export interface Blueprint {
@@ -68,30 +94,21 @@ export interface Blueprint {
   tagline: string;
   pitch: string;
   branding?: 'tech-bold' | 'corporate-clean' | 'playful-modern';
-  value_proposition: {
-    pains: string;
-    gains: string;
-    jobs: string;
-  };
-  customer_profiles: CustomerProfile[];
-  swot: SWOTAnalysis;
-  competitors: Competitor[];
+  
+  overview: VentureDetails;
+  venture: VentureDetails;
+  customers: CustomerIntelligence;
+  market: MarketIntelligence;
+  competitors: CompetitorIntelligence[];
+  product: ProductStrategy;
+  technology: TechnologyArchitecture;
   marketing: MarketingStrategy;
+  finance: FinanceStrategy;
+  funding: FundingOpportunity[];
   roadmap: RoadmapPhase[];
-  execution_plan: ExecutionStep[];
-  one_pager: string;
-  landing_copy: {
-    hero_headline: string;
-    hero_subheadline: string;
-    cta_text: string;
-  };
-  pitch_deck?: PitchSlide[];
-  funding_opportunities?: FundingOpportunity[];
-  agent_logs?: {
-    agent: string;
-    thought: string;
-    timestamp: string;
-  }[];
-  updatedAt?: string;
+  agent_logs: AgentLog[];
+  
+  updatedAt?: any;
   status?: string;
 }
+
