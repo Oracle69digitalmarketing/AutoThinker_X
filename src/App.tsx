@@ -306,7 +306,8 @@ export default function App() {
                 <div className="w-full max-w-3xl relative">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-20 transition duration-1000"></div>
                   <div className="relative flex flex-col bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-700/50 p-2 shadow-2xl">
-                    <textarea placeholder="e.g. A decentralised coffee supply chain tracking tool..." value={idea} onChange={(e) => setIdea(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-8 min-h-[200px] text-xl resize-none placeholder:text-gray-700 font-light" />
+                    <label htmlFor="startupIdea" className="sr-only">Startup Idea</label>
+                    <textarea id="startupIdea" name="startupIdea" placeholder="e.g. A decentralised coffee supply chain tracking tool..." value={idea} onChange={(e) => setIdea(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-8 min-h-[200px] text-xl resize-none placeholder:text-gray-700 font-light" />
                     <button onClick={startVoiceInput} className={`absolute top-8 right-8 p-3 rounded-2xl border transition-all ${isListening ? 'bg-red-500/20 border-red-500 text-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800/50 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-800'}`}><Zap className={isListening ? 'animate-pulse' : ''} size={20} /></button>
                     <div className="flex justify-between items-center px-6 pb-6 pt-2">
                        <div className="flex flex-col gap-3">
@@ -342,7 +343,11 @@ export default function App() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div><h2 className="text-4xl font-black text-white tracking-tight">Project Blueprints</h2><p className="text-gray-500 mt-1">Manage and evolve your generated architectures.</p></div>
                   <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:flex-none"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} /><input type="text" placeholder="Search workspace..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-600 outline-none transition-all" /></div>
+                    <div className="relative flex-1 md:flex-none">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                      <label htmlFor="searchWorkspace" className="sr-only">Search Workspace</label>
+                      <input id="searchWorkspace" name="searchWorkspace" type="text" placeholder="Search workspace..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-600 outline-none transition-all" />
+                    </div>
                     <button onClick={fetchHistory} className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-gray-400 hover:text-white transition-colors"><RefreshCw size={20} className={historyLoading ? "animate-spin" : ""} /></button>
                     <button onClick={() => setView('generate')} className="btn btn-primary py-2.5 px-5 rounded-xl text-sm flex items-center gap-2"><Plus size={18} /> New</button>
                   </div>
