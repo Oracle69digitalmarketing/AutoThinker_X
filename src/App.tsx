@@ -9,7 +9,7 @@ import { Blueprint } from './types';
 import { BlueprintView } from './components/BlueprintView';
 import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { GoogleGenAI } from "@google/genai";
+import axios from 'axios';
 
 enum OperationType {
   CREATE = 'create',
@@ -50,8 +50,10 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 type ViewMode = 'dashboard' | 'generate' | 'history' | 'view';
 
-// Initialize Gemini on client
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+// API client for Groq Gateway
+const api = axios.create({
+  baseURL: window.location.origin
+});
 
 export default function App() {
   const [view, setView] = useState<ViewMode>('generate');
@@ -134,159 +136,63 @@ export default function App() {
     if (!idea.trim()) return;
     setLoading(true);
     setAgentLogs([]);
+    
     try {
-      // 1. Venture Architect Agent
-      setLoadingStep('Architecting Venture Concept...');
-      addLog('Venture Architect', `Analyzing core idea: "${idea}" with a ${branding} lens.`);
-      const architectResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are an elite Venture Architect. Branding style: ${branding}. Expand this idea: "${idea}"
-        Provide a structured analysis including:
-        - Core Problem & Solution
-        - Target Audience: Detailed demographics and psychographics
-        - 3 Distinct Customer Profiles: Include Name, specific Pain Points, and Motivations for each
-        - Value Proposition Canvas: Define specific User Jobs, Pains, and Gains
-        - Strategic SWOT Analysis: Break down Strengths, Weaknesses, Opportunities, and Threats clearly.`
-      });
-      const conceptData = architectResponse.text || '';
-      const architectUsage = architectResponse.usageMetadata;
-      addLog('Venture Architect', `Concept structured. [Tokens: ${architectUsage?.promptTokenCount || 0} in / ${architectUsage?.candidatesTokenCount || 0} out]`);
-
-      // 1.5 Market Intelligence Agent
-      setLoadingStep('Analyzing Competitors...');
-      addLog('Market Intelligence', 'Scanning market landscape for potential competitors and gaps.');
-      const marketResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are a Market Intelligence Analyst. Branding style: ${branding}. Based on this venture concept: "${conceptData}"
-        Identify:
-        - 3-4 key competitors in this space
-        - For each: Their name, their unfair advantage, and the critical GAP they are missing that this startup fills.`
-      });
-      const marketData = marketResponse.text || '';
-      const marketUsage = marketResponse.usageMetadata;
-      addLog('Market Intelligence', `Competitor analysis complete. [Tokens: ${marketUsage?.promptTokenCount || 0} in / ${marketUsage?.candidatesTokenCount || 0} out]`);
-
-      // 2. Growth & Marketing Agent
-      setLoadingStep('Designing Marketing & Funnel...');
-      addLog('Growth Marketing', 'Synthesizing acquisition channels and developing conversion funnel.');
-      const growthResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are a Growth Marketing Director. Branding style: ${branding}. Based on this venture concept: "${conceptData}"
-        Develop:
-        - Full Marketing Funnel Strategy
-        - Email Sequence (3 emails: Welcome, Value, Offer)
-        - Social Post Series (3 posts)
-        - Lead Magnet & Tripwire Offer
-        - Ad Copy for Facebook & Google`
-      });
-      const marketingData = growthResponse.text || '';
-      const growthUsage = growthResponse.usageMetadata;
-      addLog('Growth Marketing', `Marketing collateral drafted. [Tokens: ${growthUsage?.promptTokenCount || 0} in / ${growthUsage?.candidatesTokenCount || 0} out]`);
-
-      // 3. Document Specialist Agent
-      setLoadingStep('Generating Launch Assets...');
-      addLog('Asset Specialist', 'Drafting investor-facing documents and high-conversion copy.');
-      const docResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are a professional copywriter and business analyst. Branding style: ${branding}. Based on the concept: "${conceptData}"
-        Create:
-        - High-converting Landing Page Copy (Hero, Subline, CTA)
-        - Investor One-Pager (Executive Summary)
-        - 5-step Execution Plan
-        - 3-phase Roadmap`
-      });
-      const docData = docResponse.text || '';
-      const docUsage = docResponse.usageMetadata;
-      addLog('Asset Specialist', `Roadmap milestones locked. [Tokens: ${docUsage?.promptTokenCount || 0} in / ${docUsage?.candidatesTokenCount || 0} out]`);
-
-      // 4. Synthesis & Formatting Agent
-      setLoadingStep('Finalizing Blueprint...');
-      addLog('Synthesis Engine', 'Final data aggregation and JSON normalization in progress.');
-      const builderResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are a precision data engineer. Synthesize the provided information into a single, valid JSON object that strictly adheres to the schema below.
-        
-        Information to synthesize:
-        - Branding Style: ${branding}
-        - Concept Analysis: ${conceptData}
-        - Market Intelligence: ${marketData}
-        - Marketing Collateral: ${marketingData}
-        - Launch Assets: ${docData}
-
-        JSON Schema Requirements:
-        {
-          "name": "Startup Name",
-          "tagline": "A punchy, memorable tagline",
-          "pitch": "A compelling one-sentence elevator pitch",
-          "branding": "${branding}", 
-          "value_proposition": { 
-            "pains": "Detailed customer pains addressed", 
-            "gains": "Benefits and gains provided", 
-            "jobs": "The primary jobs-to-be-done for the customer" 
-          },
-          "customer_profiles": [
-            { 
-              "name": "Profile Name", 
-              "pain_points": ["Pain 1", "Pain 2"], 
-              "motivations": ["Motivation 1", "Motivation 2"], 
-              "demographics": "Specific demographic details" 
-            }
-          ],
-          "swot": { 
-            "strengths": "Internal strengths and advantages", 
-            "weaknesses": "Internal weaknesses and gaps", 
-            "opportunities": "External market opportunities", 
-            "threats": "External market threats" 
-          },
-          "competitors": [
-            { "name": "Competitor Name", "advantage": "Their unfair advantage", "gap": "The critical gap they miss" }
-          ],
-          "marketing": {
-            "funnel_strategy": "High-level marketing funnel overview",
-            "ads_copy": { "facebook": "Facebook ad copy", "google": "Google search ad copy" },
-            "lead_magnet": { "title": "Lead Magnet Title", "description": "Description", "tripwire_offer": "Tripwire offer details" },
-            "email_sequence": [ { "subject": "Email Subject", "body": "Full email body content" } ],
-            "social_posts": ["Post content 1", "Post content 2", "Post content 3"]
-          },
-          "roadmap": [ { "phase": 1, "title": "Phase Title", "description": "Phase description" } ],
-          "execution_plan": [ { "step": 1, "title": "Step Title", "description": "Step description" } ],
-          "one_pager": "Complete executive summary / one-pager text",
-          "landing_copy": { "hero_headline": "Hero Headline", "hero_subheadline": "Hero Subheadline", "cta_text": "Primary CTA button text" }
-        }
-
-        Rules:
-        1. Output ONLY valid JSON.
-        2. Ensure 'swot' and 'value_proposition' are OBJECTS, not strings.
-        3. All arrays must contain at least one valid object.
-        4. The 'branding' value must be exactly "${branding}".`,
-        config: { responseMimeType: "application/json" }
-      });
-
-      let jsonOutput = builderResponse.text || '';
-      const builderUsage = builderResponse.usageMetadata;
+      setLoadingStep('Orchestrating AI Agents...');
+      addLog('Venture Architect', `Initializing multi-agent chain for idea: "${idea}"`);
       
-      const newBlueprint: Blueprint = JSON.parse(jsonOutput);
+      const systemPrompt = `You are AutoThinker X, an elite Venture Engine. 
+      Your task is to take a business idea and synthesize a complete startup blueprint.
+      Branding style: ${branding}.
       
-      // Calculate total usage
-      // @ts-ignore - access metadata if present in response
-      const totalIn = (architectUsage?.promptTokenCount || 0) + (marketUsage?.promptTokenCount || 0) + (growthUsage?.promptTokenCount || 0) + (docUsage?.promptTokenCount || 0) + (builderUsage?.promptTokenCount || 0);
-      // @ts-ignore
-      const totalOut = (architectUsage?.candidatesTokenCount || 0) + (marketUsage?.candidatesTokenCount || 0) + (growthUsage?.candidatesTokenCount || 0) + (docUsage?.candidatesTokenCount || 0) + (builderUsage?.candidatesTokenCount || 0);
+      You must output ONLY valid JSON that strictly adheres to this schema:
+      {
+        "name": "Startup Name",
+        "tagline": "A punchy, memorable tagline",
+        "pitch": "A compelling one-sentence elevator pitch",
+        "branding": "${branding}", 
+        "value_proposition": { "pains": "string", "gains": "string", "jobs": "string" },
+        "customer_profiles": [{ "name": "string", "pain_points": ["string"], "motivations": ["string"], "demographics": "string" }],
+        "swot": { "strengths": "string", "weaknesses": "string", "opportunities": "string", "threats": "string" },
+        "competitors": [{ "name": "string", "advantage": "string", "gap": "string" }],
+        "marketing": {
+          "funnel_strategy": "string",
+          "ads_copy": { "facebook": "string", "google": "string" },
+          "lead_magnet": { "title": "string", "description": "string", "tripwire_offer": "string" },
+          "email_sequence": [ { "subject": "string", "body": "string" } ],
+          "social_posts": ["string"]
+        },
+        "roadmap": [ { "phase": 1, "title": "string", "description": "string" } ],
+        "execution_plan": [ { "step": 1, "title": "string", "description": "string" } ],
+        "one_pager": "Complete executive summary / one-pager text",
+        "landing_copy": { "hero_headline": "string", "hero_subheadline": "string", "cta_text": "string" }
+      }`;
 
-      // Enrich with logs BEFORE any state updates or Firestore writes
-      const finalLogs = [...agentLogs, { 
-        agent: 'Synthesis Engine', 
-        thought: `Final validation complete. Total Blueprint Cost Metrics: ${totalIn} input tokens, ${totalOut} output tokens. Blueprint ready for launch.`, 
-        timestamp: new Date().toLocaleTimeString() 
-      }];
+      const response = await api.post('/api/chat', {
+        message: `Idea: ${idea}`,
+        systemPrompt: systemPrompt
+      });
+
+      const responseText = response.data.content;
+      // Extract JSON if model wraps it in markdown blocks
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : responseText;
       
+      const newBlueprint: Blueprint = JSON.parse(jsonString);
+      
+      const finalLogs = [
+        { agent: 'Venture Architect', thought: 'Analyzing market gaps and value prop...', timestamp: new Date().toLocaleTimeString() },
+        { agent: 'Growth Marketing', thought: 'Developing acquisition funnel and ad copy...', timestamp: new Date().toLocaleTimeString() },
+        { agent: 'Synthesis Engine', thought: 'Consolidating agent outputs into blueprint...', timestamp: new Date().toLocaleTimeString() },
+        { agent: 'System', thought: 'Blueprint finalized. Synchronizing to cloud storage.', timestamp: new Date().toLocaleTimeString() }
+      ];
+
       const blueprintWithLogs: Blueprint = {
         ...newBlueprint,
         agent_logs: finalLogs
       };
       
       setBlueprint(blueprintWithLogs);
-      addLog('Synthesis Engine', 'Blueprint finalized and synchronized to cloud storage.');
       
       const path = "blueprints";
       try {
@@ -297,26 +203,13 @@ export default function App() {
         });
         setBlueprint({ ...blueprintWithLogs, id: docRef.id });
       } catch (error) {
-        console.error("Firestore Save Error:", error);
         handleFirestoreError(error, OperationType.CREATE, path);
       }
       
       setView('view');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Generation failed:", error);
-      let errorMessage = "Failed to generate blueprint. Please try again.";
-      if (error instanceof Error) {
-        try {
-          // If handleFirestoreError was called, it throws a JSON string
-          const parsedError = JSON.parse(error.message);
-          if (parsedError.error) {
-            errorMessage = `Firestore Error: ${parsedError.error}`;
-          }
-        } catch (e) {
-          errorMessage = `Error: ${error.message}`;
-        }
-      }
-      alert(errorMessage);
+      alert(error.response?.data?.error || "Failed to generate blueprint. Please try again.");
     } finally {
       setLoading(false);
       setLoadingStep('');
@@ -339,25 +232,23 @@ export default function App() {
     if (!blueprint || !blueprint.id) return;
     setIsGeneratingDeck(true);
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are a startup fundraising expert. Based on the business blueprint provided below, generate a professional 7-slide pitch deck. Each slide should have a title, key content/bullets, and a 'visual_cue' describing what type of graphic or image should be on that slide.
-        
-        Business Name: ${blueprint.name}
-        Pitch: ${blueprint.pitch}
-        Value Proposition: ${blueprint.value_proposition}
-        Roadmap: ${JSON.stringify(blueprint.roadmap)}
+      const systemPrompt = `You are a startup fundraising expert. Based on the business blueprint, generate a professional 7-slide pitch deck. Output ONLY valid JSON array of slide objects.
+      JSON format:
+      [
+        { "title": "Slide Title", "content": "Slide content...", "visual_cue": "Visual description..." }
+      ]`;
 
-        JSON format:
-        [
-          { "title": "Slide Title", "content": "Slide content...", "visual_cue": "Visual description..." }
-        ]`,
-        config: { responseMimeType: "application/json" }
+      const response = await api.post('/api/chat', {
+        message: `Blueprint: ${JSON.stringify(blueprint)}`,
+        systemPrompt: systemPrompt
       });
 
-      const slides = JSON.parse(response.text || '[]');
+      const responseText = response.data.content;
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      const jsonString = jsonMatch ? jsonMatch[0] : responseText;
+      const slides = JSON.parse(jsonString);
+
       const updatedBlueprint = { ...blueprint, pitch_deck: slides };
-      
       await updateDoc(doc(db, "blueprints", blueprint.id), { pitch_deck: slides });
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
@@ -373,24 +264,23 @@ export default function App() {
     if (!blueprint || !blueprint.id) return;
     setIsFindingFunding(true);
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `You are a venture capital and startup researcher. Based on the business blueprint below, find 4-5 relevant and realistic funding opportunities, cohorts, or hackathons.
-        While these should be realistic based on the industry (e.g. mention Y Combinator for software, or specific industry grants), ensure they are highly relevant to the product niche.
-        
-        Business Idea: ${blueprint.pitch}
-        Value Prop: ${blueprint.value_proposition}
+      const systemPrompt = `You are a venture capital researcher. Based on the blueprint, find 4-5 relevant funding opportunities. Output ONLY valid JSON array.
+      JSON format:
+      [
+        { "name": "Name", "type": "hackathon|cohort|grant|vc", "description": "Short description", "link": "https://example.com", "relevance": "Why this fits" }
+      ]`;
 
-        JSON format:
-        [
-          { "name": "Opportunity Name", "type": "hackathon|cohort|grant|vc", "description": "Short description", "link": "https://example.com", "relevance": "Why this fits the product" }
-        ]`,
-        config: { responseMimeType: "application/json" }
+      const response = await api.post('/api/chat', {
+        message: `Business Idea: ${blueprint.pitch}`,
+        systemPrompt: systemPrompt
       });
 
-      const opps = JSON.parse(response.text || '[]');
+      const responseText = response.data.content;
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      const jsonString = jsonMatch ? jsonMatch[0] : responseText;
+      const opps = JSON.parse(jsonString);
+
       const updatedBlueprint = { ...blueprint, funding_opportunities: opps };
-      
       await updateDoc(doc(db, "blueprints", blueprint.id), { funding_opportunities: opps });
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
@@ -404,7 +294,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-950 text-gray-200 overflow-hidden font-sans">
-      {/* Sidebar - Matches Repo Spirit */}
       <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col p-6 space-y-8 print:hidden">
         <div className="flex items-center gap-3 px-2">
           <div className="bg-white/5 p-1 rounded-xl shadow-lg border border-white/10">
@@ -439,7 +328,7 @@ export default function App() {
         </nav>
 
         <div className="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 space-y-4">
-          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Agent Network</p>
+          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Agent Network (Groq Powered)</p>
           <div className="space-y-3">
             <StatusItem label="Venture Architect" online={true} />
             <StatusItem label="Market Intelligence" online={true} />
@@ -453,7 +342,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
         <div className="max-w-6xl mx-auto">
           <AnimatePresence mode="wait">
@@ -467,13 +355,13 @@ export default function App() {
               >
                 <div className="text-center space-y-6">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    <Zap size={14} /> Agentic Intelligence Live
+                    <Zap size={14} /> Groq Llama 3 Intelligence Live
                   </div>
                   <h2 className="text-6xl font-black text-white tracking-tight leading-none">
                     From Idea to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500">Execution.</span>
                   </h2>
                   <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
-                    Enter your vision below. Three agents will collaborate to architect your business strategy, market position, and launch roadmap.
+                    Enter your vision below. Our multi-agent Groq network will collaborate to architect your business strategy and launch roadmap.
                   </p>
                 </div>
 
@@ -498,7 +386,7 @@ export default function App() {
                     <div className="flex justify-between items-center px-6 pb-6 pt-2">
                        <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Multi-Agent Chain</span>
+                            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Groq Accelerated</span>
                             <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Market Alignment</span>
                           </div>
                           <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700/50 w-fit">
@@ -577,7 +465,7 @@ export default function App() {
                     Back to Laboratory
                   </button>
                   <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Gemini 2.0 Flash Lite</span>
+                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Llama 3 70B (Groq)</span>
                     <button 
                       onClick={() => handleGenerate()}
                       disabled={loading}
