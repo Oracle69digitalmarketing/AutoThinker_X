@@ -14,44 +14,60 @@ interface ExportCardProps {
 }
 
 export const ExportCards: React.FC = () => {
+  const handleExport = (title: string) => {
+    console.log(`Exporting ${title}...`);
+    window.print();
+  };
+
+  const handlePreview = (title: string) => {
+    console.log(`Previewing ${title}...`);
+    alert(`Previewing ${title}. Use 'Share' or 'PDF Export' for the full document.`);
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <ExportCard 
         title="Business Plan" 
         description="Comprehensive 20-page strategic document covering all aspects of the venture."
         status="ready"
-        onExport={() => {}}
+        onExport={() => handleExport("Business Plan")}
+        onPreview={() => handlePreview("Business Plan")}
       />
       <ExportCard 
         title="Executive Summary" 
         description="High-level 2-page brief designed for quick investor review."
         status="ready"
-        onExport={() => {}}
+        onExport={() => handleExport("Executive Summary")}
+        onPreview={() => handlePreview("Executive Summary")}
       />
       <ExportCard 
         title="Pitch Deck" 
         description="Investor-ready slide deck (12 slides) based on the blueprint logic."
         status="ready"
-        onExport={() => {}}
+        onExport={() => handleExport("Pitch Deck")}
+        onPreview={() => handlePreview("Pitch Deck")}
         type="presentation"
       />
       <ExportCard 
         title="Technical Architecture" 
         description="Detailed system design, infrastructure specifications, and AI stack."
         status="ready"
-        onExport={() => {}}
+        onExport={() => handleExport("Technical Architecture")}
+        onPreview={() => handlePreview("Technical Architecture")}
       />
       <ExportCard 
         title="Marketing Playbook" 
         description="GTM strategy, funnel design, and multi-channel messaging guide."
-        status="locked"
-        onExport={() => {}}
+        status="ready"
+        onExport={() => handleExport("Marketing Playbook")}
+        onPreview={() => handlePreview("Marketing Playbook")}
       />
       <ExportCard 
         title="Financial Model" 
         description="5-year projections, unit economics, and burn rate analysis."
-        status="locked"
-        onExport={() => {}}
+        status="ready"
+        onExport={() => handleExport("Financial Model")}
+        onPreview={() => handlePreview("Financial Model")}
       />
     </div>
   );

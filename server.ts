@@ -13,7 +13,9 @@ dotenv.config();
 
 // Compatibility Layer: Map VOS v3 schema back to V1 structure
 function mapV3ToV1(v3: any): any {
-  return {
+  console.log("Mapping V3 to V1. V3 keys:", Object.keys(v3));
+  
+  const mapped = {
     name: v3.venture?.name || "Unnamed Venture",
     tagline: v3.venture?.tagline || "",
     pitch: v3.venture?.elevator_pitch || "",
@@ -40,19 +42,20 @@ function mapV3ToV1(v3: any): any {
       personas: (v3.customers?.personas || []).map((p: any) => ({
         name: p.name || "",
         role: p.role || "",
-        pain_points: p.pain_points || [],
-        motivations: p.motivations || []
+        pain_points: Array.isArray(p.pain_points) ? p.pain_points : [],
+        motivations: Array.isArray(p.motivations) ? p.motivations : [],
+        demographics: p.demographics || ""
       })),
-      jobs_to_be_done: v3.customers?.jtbd || [],
-      pain_points: (v3.customers?.personas || []).flatMap((p: any) => p.pain_points || []),
+      jobs_to_be_done: Array.isArray(v3.customers?.jtbd) ? v3.customers?.jtbd : [],
+      pain_points: Array.isArray(v3.customers?.personas) ? v3.customers.personas.flatMap((p: any) => Array.isArray(p.pain_points) ? p.pain_points : []) : [],
       customer_gains: []
     },
     market: {
       tam: v3.market?.tam?.size || "",
       sam: v3.market?.sam?.size || "",
       som: v3.market?.som?.size || "",
-      industry_trends: v3.market?.trends || [],
-      opportunities: v3.market?.opportunities || []
+      industry_trends: Array.isArray(v3.market?.trends) ? v3.market?.trends : [],
+      opportunities: Array.isArray(v3.market?.opportunities) ? v3.market?.opportunities : []
     },
     competitors: (v3.competition?.matrix || []).map((c: any) => ({
       name: c.name || "",
@@ -62,8 +65,8 @@ function mapV3ToV1(v3: any): any {
     })),
     product: {
       mvp: v3.product?.unique_selling_point || "",
-      core_features: v3.product?.mvp_features || [],
-      product_roadmap: v3.product?.roadmap || []
+      core_features: Array.isArray(v3.product?.mvp_features) ? v3.product?.mvp_features : [],
+      product_roadmap: Array.isArray(v3.product?.roadmap) ? v3.product?.roadmap : []
     },
     technology: {
       frontend: v3.technology?.stack?.frontend || "",
@@ -78,10 +81,10 @@ function mapV3ToV1(v3: any): any {
       funnel: v3.marketing?.funnel?.awareness || "",
       landing_page_messaging: v3.marketing?.ad_copy?.headline || "",
       email_sequence: [],
-      social_content: []
+      social_content: Array.isArray(v3.marketing?.channels) ? v3.marketing.channels : []
     },
     finance: {
-      revenue_streams: v3.business_model?.revenue_streams || [],
+      revenue_streams: Array.isArray(v3.business_model?.revenue_streams) ? v3.business_model?.revenue_streams : [],
       pricing: v3.business_model?.pricing_strategy || "",
       cost_structure: v3.financials?.burn_rate_estimate || "",
       financial_assumptions: ""
@@ -95,11 +98,14 @@ function mapV3ToV1(v3: any): any {
     roadmap: [
       {
         phase: "Growth",
-        tasks: v3.execution?.roadmap || []
+        tasks: Array.isArray(v3.execution?.roadmap) ? v3.execution.roadmap : []
       }
     ],
     agent_logs: v3.agent_logs || []
   };
+
+  console.log("Mapped V1 Blueprint:", mapped.name);
+  return mapped;
 }
 
 async function startServer() {

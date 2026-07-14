@@ -12,6 +12,7 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { LoadingPanel } from './components/LoadingPanel';
 import { BlueprintView } from './components/BlueprintView';
+import { ExportCards } from './components/ExportCards';
 
 enum OperationType {
   CREATE = 'create',
@@ -49,7 +50,39 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   console.error('Firestore Error Details: ', JSON.stringify(errInfo));
 }
 
-type ViewMode = 'dashboard' | 'generate' | 'history' | 'view' | 'exports';
+function removeUndefined(obj: any): any {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefined(item));
+  }
+
+  const newObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const val = obj[key];
+      if (val === undefined) {
+        const sensibleDefaults: Record<string, any> = {
+          branding: 'tech-bold',
+          idea: '',
+          version: '1.0.0',
+          provider: 'groq-deepseek',
+          status: 'complete',
+          generation_time: 0,
+          confidence: 0,
+          downloads: 0
+        };
+        newObj[key] = sensibleDefaults[key] !== undefined ? sensibleDefaults[key] : null;
+      } else {
+        newObj[key] = removeUndefined(val);
+      }
+    }
+  }
+  return newObj;
+}
+
+type ViewMode = 'dashboard' | 'generate' | 'history' | 'view' | 'exports' | 'settings' | 'help';
 
 const api = axios.create({
   baseURL: window.location.origin,
@@ -96,19 +129,29 @@ export default function App() {
     }
   };
 
+  const handleRefresh = () => {
+    console.log("Refreshing data...");
+    fetchHistory();
+  };
+
   const handleGenerate = async () => {
     if (!idea.trim()) return;
+    console.log("Generate clicked with idea:", idea);
     setLoading(true);
     
     try {
       setLoadingStep(`Orchestrating ${complexity.toUpperCase()} Complexity Chain...`);
+      console.log("Sending API request to /api/chat");
       const response = await api.post('/api/chat', { idea, branding, complexity });
+      console.log("API response received:", response.data);
+      
       const newBlueprint: Blueprint = response.data;
+      console.log("Blueprint parsed:", newBlueprint.name);
       setBlueprint(newBlueprint);
       
       const path = "blueprints";
       try {
-        const optimizedStorage = {
+        const optimizedStorage = removeUndefined({
           name: newBlueprint.name,
           timestamp: Timestamp.now(),
           summary: newBlueprint.pitch,
@@ -116,16 +159,23 @@ export default function App() {
           blueprint: newBlueprint,
           updatedAt: Timestamp.now(),
           status: 'complete'
-        };
+        });
+        console.log("Firestore document to save:", optimizedStorage);
         const docRef = await addDoc(collection(db, path), optimizedStorage);
+        console.log("Firestore saved successfully with ID:", docRef.id);
         setBlueprint({ ...newBlueprint, id: docRef.id });
       } catch (firestoreError) {
+        console.error("Firestore save failed:", firestoreError);
         handleFirestoreError(firestoreError, OperationType.CREATE, path);
+        alert("Warning: Blueprint generated but failed to save to cloud history. You can still view it now, but it may not be available later.");
       }
+      console.log("Transitioning to 'view' mode");
       setView('view');
     } catch (error: any) {
+      console.error("Generation failed:", error);
       alert(error.response?.data?.error || error.message || "AI Service Unavailable.");
     } finally {
+      console.log("Resetting loading states");
       setLoading(false);
       setLoadingStep('');
     }
@@ -150,7 +200,13 @@ export default function App() {
       const response = await api.post('/api/deck', { blueprint });
       const slides = response.data;
       const updatedBlueprint = { ...blueprint, pitch_deck: slides };
-      await updateDoc(doc(db, "blueprints", blueprint.id), { pitch_deck: slides });
+      try {
+        const sanitizedData = removeUndefined({ pitch_deck: slides });
+        await updateDoc(doc(db, "blueprints", blueprint.id), sanitizedData);
+      } catch (firestoreError) {
+        console.error("Firestore save failed:", firestoreError);
+        alert("Warning: Pitch deck generated but failed to save to cloud history.");
+      }
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
     } catch (error) {
@@ -167,7 +223,13 @@ export default function App() {
       const response = await api.post('/api/funding', { blueprint });
       const opps = response.data;
       const updatedBlueprint = { ...blueprint, funding_opportunities: opps };
-      await updateDoc(doc(db, "blueprints", blueprint.id), { funding_opportunities: opps });
+      try {
+        const sanitizedData = removeUndefined({ funding_opportunities: opps });
+        await updateDoc(doc(db, "blueprints", blueprint.id), sanitizedData);
+      } catch (firestoreError) {
+        console.error("Firestore save failed:", firestoreError);
+        alert("Warning: Funding opportunities found but failed to save to cloud history.");
+      }
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
     } catch (error) {
@@ -203,6 +265,8 @@ export default function App() {
       case 'history': return 'Agent Execution Logs';
       case 'view': return blueprint?.name || 'Blueprint Viewer';
       case 'exports': return 'Project Exports';
+      case 'settings': return 'System Settings';
+      case 'help': return 'Help & Documentation';
       default: return 'AutoThinker X';
     }
   };
@@ -215,6 +279,9 @@ export default function App() {
         <Header 
           title={getHeaderTitle()} 
           subtitle={view === 'view' ? blueprint?.tagline : undefined}
+          onRefresh={handleRefresh}
+          search={search}
+          setSearch={setSearch}
         />
 
         <main className="flex-1 overflow-y-auto custom-scrollbar relative">
@@ -255,15 +322,45 @@ export default function App() {
                 />
               )}
 
-              {(view === 'dashboard' || view === 'history') && (
+              {view === 'settings' && (
+                <div className="bg-slate-900/40 border border-slate-800/50 rounded-[2rem] p-12 text-center space-y-6">
+                  <h2 className="text-4xl font-black text-white">System Settings</h2>
+                  <p className="text-slate-400 max-w-xl mx-auto">Configure your Venture OS environment, AI model priorities, and API integrations.</p>
+                  <div className="pt-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                    {['Model Selection', 'API Keys', 'Branding Presets', 'Export Formats'].map(s => (
+                      <div key={s} className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-left cursor-pointer hover:border-indigo-500/30 transition-all">
+                        <p className="font-bold text-white">{s}</p>
+                        <p className="text-xs text-slate-500 mt-1">Configure your {s.toLowerCase()} preferences.</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {view === 'help' && (
+                <div className="bg-slate-900/40 border border-slate-800/50 rounded-[2rem] p-12 text-center space-y-6">
+                  <h2 className="text-4xl font-black text-white">Help & Documentation</h2>
+                  <p className="text-slate-400 max-w-xl mx-auto">Everything you need to know about the AutoThinker X platform and Multi-Agent Orchestration.</p>
+                  <div className="pt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {['Getting Started', 'Agent Workflow', 'Exporting Assets', 'Troubleshooting', 'API Docs', 'Community'].map(h => (
+                      <div key={h} className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-left hover:border-indigo-500/30 transition-all cursor-pointer">
+                        <p className="font-bold text-white">{h}</p>
+                        <p className="text-xs text-slate-500 mt-1">Learn more about {h.toLowerCase()}.</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(view === 'dashboard' || view === 'history' || view === 'exports') && (
                  <div className="space-y-10">
                     <div className="flex justify-between items-center">
                        <div>
                           <h2 className="text-4xl font-black text-white tracking-tight">
-                             {view === 'dashboard' ? 'Active Blueprints' : 'Agent Network History'}
+                             {view === 'dashboard' ? 'Active Blueprints' : view === 'history' ? 'Agent Execution History' : 'Project Exports'}
                           </h2>
                           <p className="text-slate-500 mt-1 font-medium">
-                             {view === 'dashboard' ? 'Manage your generated venture architectures.' : 'Review autonomous agent execution traces.'}
+                             {view === 'dashboard' ? 'Manage your generated venture architectures.' : view === 'history' ? 'Review autonomous agent execution traces.' : 'Download and manage your venture assets.'}
                           </p>
                        </div>
                        <button 
@@ -274,14 +371,16 @@ export default function App() {
                        </button>
                     </div>
 
-                    {historyLoading ? (
+                    {view === 'exports' ? (
+                      <ExportCards />
+                    ) : historyLoading ? (
                        <div className="flex flex-col items-center justify-center h-96 space-y-4">
                           <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                           <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Syncing with Database...</p>
                        </div>
                     ) : (
                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {history.map((bp) => (
+                          {history.filter(bp => bp.name.toLowerCase().includes(search.toLowerCase())).map((bp) => (
                              <div 
                                 key={bp.id} 
                                 onClick={() => { setBlueprint(bp); setView('view'); }}

@@ -80,7 +80,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, onlineAgents })
         {bottomItems.map((item) => (
           <button
             key={item.id}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all text-sm font-medium"
+            onClick={() => setView(item.id)}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl transition-all text-sm font-medium ${
+              view === item.id 
+                ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-600/20' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
           >
             {item.icon}
             {item.label}

@@ -92,10 +92,19 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             {blueprint.pitch}
           </p>
           <div className="flex items-center gap-4 pt-4">
-            <button onClick={onPrint} className="flex items-center gap-2 px-6 py-3 bg-white text-slate-950 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all">
+            <button 
+              onClick={() => {
+                const url = window.location.href;
+                navigator.clipboard.writeText(url).then(() => alert("Blueprint link copied to clipboard!"));
+              }} 
+              className="flex items-center gap-2 px-6 py-3 bg-white text-slate-950 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
+            >
               <Share2 size={18} /> Share Blueprint
             </button>
-            <button className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all border border-slate-700">
+            <button 
+              onClick={onPrint}
+              className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all border border-slate-700"
+            >
               <Download size={18} /> PDF Export
             </button>
           </div>
