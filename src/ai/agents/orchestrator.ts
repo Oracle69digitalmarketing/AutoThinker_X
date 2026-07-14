@@ -1,5 +1,5 @@
 import { runAgent, AgentResult } from "./Agent";
-import * as Prompts from "../prompts";
+import * as Prompts from "../../prompts";
 
 export async function orchestrateVenture(idea: string, branding: string) {
   const userPrompt = `Startup Idea: "${idea}"\nBranding Style: "${branding}"`;

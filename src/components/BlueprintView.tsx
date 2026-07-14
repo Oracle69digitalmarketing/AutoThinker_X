@@ -9,8 +9,11 @@ import {
   Share2, MousePointer2, Briefcase, UserCircle2,
   CheckCircle2, Plus, ArrowRight, ExternalLink, Search
 } from 'lucide-react';
-import { PitchDeckView } from './PitchDeckView';
-import { FundingView } from './FundingView';
+import { 
+  generateBusinessPlanText, 
+  generateExecSummaryText, 
+  generateInvestorMemoMarkdown 
+} from '../export';
 
 interface BlueprintViewProps {
   blueprint: Blueprint;
@@ -76,43 +79,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   };
 
   const handleExportMarkdown = () => {
-    const content = `# ${blueprint.name} - Venture Blueprint
-${blueprint.tagline}
-
-## Overview
-${blueprint.overview.elevator_pitch}
-**Mission:** ${blueprint.overview.mission}
-**Vision:** ${blueprint.overview.vision}
-
-## Problem & Solution
-**Problem:** ${blueprint.overview.problem}
-**Solution:** ${blueprint.overview.solution}
-**Business Model:** ${blueprint.overview.business_model}
-
-## Market Analysis
-**TAM:** ${blueprint.market.tam}
-**SAM:** ${blueprint.market.sam}
-**SOM:** ${blueprint.market.som}
-
-### Trends
-${blueprint.market.industry_trends.map(t => `- ${t}`).join('\n')}
-
-### Opportunities
-${blueprint.market.opportunities.map(o => `- ${o}`).join('\n')}
-
-## Competitors
-${blueprint.competitors.map(c => `### ${c.name}\n**Strengths:** ${c.strengths}\n**Weaknesses:** ${c.weaknesses}\n**Market Gap:** ${c.market_gaps}`).join('\n\n')}
-
-## Technology Architecture
-**Frontend:** ${blueprint.technology.frontend}
-**Backend:** ${blueprint.technology.backend}
-**Database:** ${blueprint.technology.database}
-**AI Stack:** ${blueprint.technology.ai_stack}
-**Deployment:** ${blueprint.technology.deployment}
-
-## Execution Roadmap
-${blueprint.roadmap.map(r => `### ${r.phase}\n${r.tasks.map(t => `- ${t}`).join('\n')}`).join('\n\n')}
-`;
+    const content = generateInvestorMemoMarkdown(blueprint);
     const dataStr = "data:text/markdown;charset=utf-8," + encodeURIComponent(content);
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -123,41 +90,7 @@ ${blueprint.roadmap.map(r => `### ${r.phase}\n${r.tasks.map(t => `- ${t}`).join(
   };
 
   const handleExportBusinessPlan = () => {
-    const content = `BUSINESS PLAN: ${blueprint.name}
-==================================================
-
-1. EXECUTIVE SUMMARY
-${blueprint.overview.elevator_pitch}
-
-2. MISSION & VISION
-Mission: ${blueprint.overview.mission}
-Vision: ${blueprint.overview.vision}
-
-3. THE PROBLEM
-${blueprint.overview.problem}
-
-4. OUR SOLUTION
-${blueprint.overview.solution}
-
-5. TARGET MARKET & CUSTOMERS
-ICP: ${blueprint.customers.icp}
-
-6. COMPETITIVE LANDSCAPE
-${blueprint.competitors.map(c => `- ${c.name}: ${c.market_gaps}`).join('\n')}
-
-7. MARKETING & GTM
-Strategy: ${blueprint.marketing.gtm_strategy}
-
-8. FINANCIAL PROJECTIONS
-Revenue: ${blueprint.finance.revenue_streams.join(', ')}
-Pricing: ${blueprint.finance.pricing}
-
-9. TECHNOLOGY STACK
-Stack: ${blueprint.technology.frontend}, ${blueprint.technology.backend}, ${blueprint.technology.database}
-
-10. ROADMAP
-${blueprint.roadmap.map(r => `${r.phase}: ${r.tasks.join(', ')}`).join('\n')}
-`;
+    const content = generateBusinessPlanText(blueprint);
     const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(content);
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -168,30 +101,7 @@ ${blueprint.roadmap.map(r => `${r.phase}: ${r.tasks.join(', ')}`).join('\n')}
   };
 
   const handleExportExecSummary = () => {
-    const content = `EXECUTIVE SUMMARY: ${blueprint.name}
-==================================================
-
-STARTUP: ${blueprint.name}
-TAGLINE: ${blueprint.tagline}
-
-CORE PROBLEM:
-${blueprint.overview.problem}
-
-PROPOSED SOLUTION:
-${blueprint.overview.solution}
-
-MARKET OPPORTUNITY:
-TAM: ${blueprint.market.tam} | SAM: ${blueprint.market.sam} | SOM: ${blueprint.market.som}
-
-COMPETITIVE EDGE:
-${blueprint.competitors.map(c => `- ${c.name} GAP: ${c.market_gaps}`).join('\n')}
-
-REVENUE MODEL:
-${blueprint.finance.revenue_streams.join(', ')}
-
-ASK / FUNDING TARGETS:
-${blueprint.funding.map(f => `- ${f.name} (${f.type})`).join('\n')}
-`;
+    const content = generateExecSummaryText(blueprint);
     const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(content);
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -225,7 +135,7 @@ ${blueprint.funding.map(f => `- ${f.name} (${f.type})`).join('\n')}
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all relative ${
               activeTab === tab.id 
                 ? `bg-gradient-to-r ${getBrandClasses()} text-white shadow-lg shadow-indigo-600/20` 
                 : 'text-gray-500 hover:text-gray-200 hover:bg-slate-800'
@@ -233,6 +143,10 @@ ${blueprint.funding.map(f => `- ${f.name} (${f.type})`).join('\n')}
           >
             {tab.icon}
             {tab.label}
+            {/* Phase 12: Subtle Confidence Indicator */}
+            {(blueprint as any).metrics?.avg_confidence && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></span>
+            )}
           </button>
         ))}
       </div>
@@ -560,6 +474,25 @@ ${blueprint.funding.map(f => `- ${f.name} (${f.type})`).join('\n')}
                     <span className="text-gray-500">Processing Time: {log.duration}</span>
                   </div>
                 ))}
+                
+                {/* Phase 12: Enhanced Metrics Summary */}
+                {(blueprint as any).metrics && (
+                  <div className="mt-8 pt-6 border-t border-slate-700/50 grid grid-cols-3 gap-4 text-center">
+                    <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
+                      <div className="text-[10px] text-gray-500 uppercase mb-1">Latency</div>
+                      <div className="text-lg font-bold text-indigo-400">{Math.round((blueprint as any).metrics.generation_time / 1000)}s</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                      <div className="text-[10px] text-gray-500 uppercase mb-1">Confidence</div>
+                      <div className="text-lg font-bold text-purple-400">{Math.round((blueprint as any).metrics.avg_confidence)}%</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                      <div className="text-[10px] text-gray-500 uppercase mb-1">Tokens</div>
+                      <div className="text-lg font-bold text-blue-400">{(blueprint as any).metrics.total_tokens}</div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-4 text-indigo-500 text-[10px] font-bold">
                   [SUCCESS] UNIT GENERATION COMPLETE. ALL MODULES SYNCED.
                 </div>

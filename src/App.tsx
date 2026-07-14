@@ -160,7 +160,13 @@ export default function App() {
           branding: newBlueprint.branding,
           blueprint: newBlueprint, // The complete JSON blueprint
           updatedAt: Timestamp.now(),
-          status: 'complete'
+          status: 'complete',
+          // Phase 5: Firestore Extension
+          version: '3.0.0',
+          generation_time: newBlueprint.metrics?.generation_time || 0,
+          confidence: newBlueprint.metrics?.avg_confidence || 0,
+          total_tokens: newBlueprint.metrics?.total_tokens || 0,
+          provider: 'groq-deepseek-parallel'
         };
         
         const docRef = await addDoc(collection(db, path), optimizedStorage);
