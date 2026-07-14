@@ -44,14 +44,15 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.error('Firestore Error Details: ', JSON.stringify(errInfo));
+  // Removed throw to prevent blocking UI flow
 }
 
 type ViewMode = 'dashboard' | 'generate' | 'history' | 'view';
 
 const api = axios.create({
-  baseURL: window.location.origin
+  baseURL: window.location.origin,
+  timeout: 300000 // 5 minute timeout for long AI generations
 });
 
 export default function App() {
@@ -105,6 +106,7 @@ export default function App() {
   }, [view]);
 
   const fetchHistory = async () => {
+    console.log("Fetching history...");
     setHistoryLoading(true);
     const path = "blueprints";
     try {
@@ -116,7 +118,9 @@ export default function App() {
         updatedAt: doc.data().updatedAt instanceof Timestamp ? doc.data().updatedAt.toDate().toISOString() : doc.data().updatedAt
       } as Blueprint));
       setHistory(docs);
+      console.log("History fetched successfully.");
     } catch (error) {
+      console.error("Failed to fetch history:", error);
       handleFirestoreError(error, OperationType.GET, path);
     } finally {
       setHistoryLoading(false);
@@ -130,13 +134,20 @@ export default function App() {
 
   const handleGenerate = async () => {
     if (!idea.trim()) return;
+    console.log("Starting request...");
     setLoading(true);
     setAgentLogs([]);
+    
+    let currentBlueprint: Blueprint | null = null;
+
     try {
       setLoadingStep('Orchestrating Multi-Agent Chain...');
       addLog('Venture Architect', `Initializing engine for: "${idea}"`);
       
+      console.log("Sending API request to /api/chat...");
       const response = await api.post('/api/chat', { idea, branding });
+      console.log("API response:", response.data);
+      
       const newBlueprint: Blueprint = response.data;
       
       const finalLogs = [
@@ -146,25 +157,34 @@ export default function App() {
         { agent: 'Synthesis Engine', thought: 'Blueprint finalized and verified.', timestamp: new Date().toLocaleTimeString() }
       ];
 
-      const blueprintWithLogs: Blueprint = { ...newBlueprint, agent_logs: finalLogs };
-      setBlueprint(blueprintWithLogs);
+      currentBlueprint = { ...newBlueprint, agent_logs: finalLogs };
+      console.log("Setting blueprint...");
+      setBlueprint(currentBlueprint);
       
       const path = "blueprints";
       try {
+        console.log("Saving to Firestore...");
         const docRef = await addDoc(collection(db, path), {
-          ...blueprintWithLogs,
+          ...currentBlueprint,
           updatedAt: Timestamp.now(),
           status: 'complete'
         });
-        setBlueprint({ ...blueprintWithLogs, id: docRef.id });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, path);
+        console.log("Firestore saved. ID:", docRef.id);
+        setBlueprint({ ...currentBlueprint, id: docRef.id });
+      } catch (firestoreError) {
+        console.error("Firestore save failed but continuing UI flow:", firestoreError);
+        handleFirestoreError(firestoreError, OperationType.CREATE, path);
       }
       
+      console.log("Switching to view...");
       setView('view');
+      console.log("Finished.");
     } catch (error: any) {
-      console.error("Generation failed:", error);
-      alert(error.response?.data?.error || "AI Service Unavailable. Check logs.");
+      console.error("Generation failed at API level:", error);
+      if (error.name === 'AbortError' || axios.isCancel(error)) {
+        console.error("Request was aborted/cancelled.");
+      }
+      alert(error.response?.data?.error || error.message || "AI Service Unavailable. Check logs.");
     } finally {
       setLoading(false);
       setLoadingStep('');
@@ -173,26 +193,41 @@ export default function App() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this blueprint?")) return;
+    console.log(`Deleting blueprint ${id}...`);
     const path = `blueprints/${id}`;
     try {
       await deleteDoc(doc(db, "blueprints", id));
       setHistory(prev => prev.filter(b => b.id !== id));
       if (blueprint?.id === id) setBlueprint(null);
+      console.log("Blueprint deleted.");
     } catch (error) {
+      console.error("Delete failed:", error);
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   };
 
   const handleGeneratePitchDeck = async () => {
     if (!blueprint || !blueprint.id) return;
+    console.log("Generating pitch deck...");
     setIsGeneratingDeck(true);
     try {
+      console.log("Sending API request to /api/deck...");
       const response = await api.post('/api/deck', { blueprint });
+      console.log("Deck API response:", response.data);
       const slides = response.data;
       const updatedBlueprint = { ...blueprint, pitch_deck: slides };
-      await updateDoc(doc(db, "blueprints", blueprint.id), { pitch_deck: slides });
+      
+      try {
+        console.log("Updating Firestore with pitch deck...");
+        await updateDoc(doc(db, "blueprints", blueprint.id), { pitch_deck: slides });
+        console.log("Firestore updated.");
+      } catch (firestoreError) {
+        console.error("Firestore update failed for deck:", firestoreError);
+      }
+      
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
+      console.log("Pitch deck generation finished.");
     } catch (error) {
       console.error("Deck generation failed:", error);
       alert("Failed to create pitch deck.");
@@ -203,14 +238,26 @@ export default function App() {
 
   const handleFindFunding = async () => {
     if (!blueprint || !blueprint.id) return;
+    console.log("Finding funding...");
     setIsFindingFunding(true);
     try {
+      console.log("Sending API request to /api/funding...");
       const response = await api.post('/api/funding', { blueprint });
+      console.log("Funding API response:", response.data);
       const opps = response.data;
       const updatedBlueprint = { ...blueprint, funding_opportunities: opps };
-      await updateDoc(doc(db, "blueprints", blueprint.id), { funding_opportunities: opps });
+      
+      try {
+        console.log("Updating Firestore with funding opportunities...");
+        await updateDoc(doc(db, "blueprints", blueprint.id), { funding_opportunities: opps });
+        console.log("Firestore updated.");
+      } catch (firestoreError) {
+        console.error("Firestore update failed for funding:", firestoreError);
+      }
+      
       setBlueprint(updatedBlueprint);
       setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
+      console.log("Funding search finished.");
     } catch (error) {
       console.error("Funding search failed:", error);
       alert("Failed to find funding opportunities.");
