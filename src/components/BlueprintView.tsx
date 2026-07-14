@@ -428,7 +428,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             <div className="space-y-8">
                <SectionCard title="Asset Repository" icon={<FileText className="text-indigo-400" />}>
                   <p className="text-slate-400 mb-10 max-w-2xl">Generated professional documentation ready for investor review and internal execution.</p>
-                  <ExportCards />
+                  <ExportCards blueprint={blueprint} />
                </SectionCard>
                {blueprint.pitch_deck && blueprint.pitch_deck.length > 0 && (
                   <SectionCard title="Investor Presentation" icon={<Presentation className="text-blue-400" />}>
