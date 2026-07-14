@@ -2,93 +2,110 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, Loader2, 
   BrainCircuit, LayoutDashboard, History,
-  Sparkles, Trash2, ArrowRight, Zap, CheckCircle2
+  Sparkles, Trash2, ArrowRight, Zap, CheckCircle2,
+  Mic, MicOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Blueprint } from './types';
+import { VentureBlueprint } from './types';
 import { BlueprintView } from './components/BlueprintView';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc, Timestamp, limit } from 'firebase/firestore';
+import { db } from './firebase';
 import axios from 'axios';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error Details: ', JSON.stringify(errInfo));
-  // Removed throw to prevent blocking UI flow
-}
 
 type ViewMode = 'dashboard' | 'generate' | 'history' | 'view';
 
 const api = axios.create({
   baseURL: window.location.origin,
-  timeout: 300000 // 5 minute timeout for long AI generations
+  timeout: 300000 
 });
 
 export default function App() {
   const [view, setView] = useState<ViewMode>('generate');
   const [idea, setIdea] = useState('');
   const [branding, setBranding] = useState<'tech-bold' | 'corporate-clean' | 'playful-modern'>('tech-bold');
-  const [complexity, setComplexity] = useState<'low' | 'medium' | 'high'>('medium');
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
-  const [agentLogs, setAgentLogs] = useState<{agent: string, thought: string, timestamp: string}[]>([]);
+  const [blueprint, setBlueprint] = useState<VentureBlueprint | null>(null);
+  const [deck, setDeck] = useState<any[] | null>(null);
   const [isGeneratingDeck, setIsGeneratingDeck] = useState(false);
-  const [isFindingFunding, setIsFindingFunding] = useState(false);
-  const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
-  const [history, setHistory] = useState<Blueprint[]>([]);
+  const [history, setHistory] = useState<VentureBlueprint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const addLog = (agent: string, thought: string) => {
-    setAgentLogs(prev => [...prev, { agent, thought, timestamp: new Date().toLocaleTimeString() }]);
+  useEffect(() => {
+    if (view === 'history') {
+      fetchHistory();
+    }
+  }, [view]);
+
+  const handleGenerateDeck = async () => {
+    if (!blueprint) return;
+    setIsGeneratingDeck(true);
+    try {
+      const response = await api.post('/api/deck', { blueprint });
+      setDeck(response.data);
+    } catch (error) {
+      console.error("Deck Generation Error:", error);
+      alert("Failed to generate pitch deck. Please retry.");
+    } finally {
+      setIsGeneratingDeck(false);
+    }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const q = query(collection(db, 'blueprints'), orderBy('createdAt', 'desc'), limit(20));
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VentureBlueprint));
+      setHistory(docs);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!idea) return;
+    setLoading(true);
+    setLoadingStep('Initializing Venture OS Multi-Agent Chain...');
+    
+    try {
+      const response = await api.post('/api/chat', { idea, branding });
+      const newBlueprint = response.data;
+      
+      setLoadingStep('Synchronizing with Venture Database...');
+      const docRef = await addDoc(collection(db, 'blueprints'), {
+        ...newBlueprint,
+        idea,
+        branding,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        status: 'completed',
+        version: '3.0.0'
+      });
+      
+      newBlueprint.id = docRef.id;
+      setBlueprint(newBlueprint);
+      setView('view');
+    } catch (error) {
+      console.error("Generation Error:", error);
+      alert("System Overload: The AI Agent chain failed to synchronize. Please retry.");
+    } finally {
+      setLoading(false);
+      setLoadingStep('');
+    }
   };
 
   const startVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window)) {
-      alert("Voice input is not supported in your browser.");
+      alert("Voice input not supported.");
       return;
     }
     // @ts-ignore
     const recognition = new window.webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
     recognition.onstart = () => setIsListening(true);
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
@@ -100,276 +117,162 @@ export default function App() {
     recognition.start();
   };
 
-  useEffect(() => {
-    if (view === 'dashboard' || view === 'history') {
-      fetchHistory();
-    }
-  }, [view]);
-
-  const fetchHistory = async () => {
-    console.log("Fetching history...");
-    setHistoryLoading(true);
-    const path = "blueprints";
-    try {
-      const q = query(collection(db, path), orderBy("updatedAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      const docs = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data(),
-        updatedAt: doc.data().updatedAt instanceof Timestamp ? doc.data().updatedAt.toDate().toISOString() : doc.data().updatedAt
-      } as Blueprint));
-      setHistory(docs);
-      console.log("History fetched successfully.");
-    } catch (error) {
-      console.error("Failed to fetch history:", error);
-      handleFirestoreError(error, OperationType.GET, path);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const filteredHistory = history.filter(bp =>
-    bp.name.toLowerCase().includes(search.toLowerCase()) ||
-    bp.pitch.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleGenerate = async () => {
-    if (!idea.trim()) return;
-    console.log("Starting request...");
-    setLoading(true);
-    setAgentLogs([]);
-    
-    try {
-      setLoadingStep(`Orchestrating ${complexity.toUpperCase()} Complexity Chain...`);
-      
-      console.log("Sending API request to /api/chat...");
-      const response = await api.post('/api/chat', { idea, branding, complexity });
-      console.log("API response:", response.data);
-      
-      const newBlueprint: Blueprint = response.data;
-      setBlueprint(newBlueprint);
-      
-      const path = "blueprints";
-      try {
-        console.log("Saving to Firestore (Optimized)...");
-        // FIREBASE OPTIMIZATION: Store only essential data
-        const optimizedStorage = {
-          name: newBlueprint.name,
-          timestamp: Timestamp.now(),
-          summary: newBlueprint.pitch,
-          branding: newBlueprint.branding,
-          blueprint: newBlueprint, // The complete JSON blueprint
-          updatedAt: Timestamp.now(),
-          status: 'complete'
-        };
-        
-        const docRef = await addDoc(collection(db, path), optimizedStorage);
-        console.log("Firestore saved. ID:", docRef.id);
-        setBlueprint({ ...newBlueprint, id: docRef.id });
-      } catch (firestoreError) {
-        console.error("Firestore save failed but continuing UI flow:", firestoreError);
-        handleFirestoreError(firestoreError, OperationType.CREATE, path);
-      }
-      
-      console.log("Switching to view...");
-      setView('view');
-      console.log("Finished.");
-    } catch (error: any) {
-      console.error("Generation failed at API level:", error);
-      if (error.name === 'AbortError' || axios.isCancel(error)) {
-        console.error("Request was aborted/cancelled.");
-      }
-      alert(error.response?.data?.error || error.message || "AI Service Unavailable. Check logs.");
-    } finally {
-      setLoading(false);
-      setLoadingStep('');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this blueprint?")) return;
-    console.log(`Deleting blueprint ${id}...`);
-    const path = `blueprints/${id}`;
-    try {
-      await deleteDoc(doc(db, "blueprints", id));
-      setHistory(prev => prev.filter(b => b.id !== id));
-      if (blueprint?.id === id) setBlueprint(null);
-      console.log("Blueprint deleted.");
-    } catch (error) {
-      console.error("Delete failed:", error);
-      handleFirestoreError(error, OperationType.DELETE, path);
-    }
-  };
-
-  const handleGeneratePitchDeck = async () => {
-    if (!blueprint || !blueprint.id) return;
-    console.log("Generating pitch deck...");
-    setIsGeneratingDeck(true);
-    try {
-      console.log("Sending API request to /api/deck...");
-      const response = await api.post('/api/deck', { blueprint });
-      console.log("Deck API response:", response.data);
-      const slides = response.data;
-      const updatedBlueprint = { ...blueprint, pitch_deck: slides };
-      
-      try {
-        console.log("Updating Firestore with pitch deck...");
-        await updateDoc(doc(db, "blueprints", blueprint.id), { pitch_deck: slides });
-        console.log("Firestore updated.");
-      } catch (firestoreError) {
-        console.error("Firestore update failed for deck:", firestoreError);
-      }
-      
-      setBlueprint(updatedBlueprint);
-      setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
-      console.log("Pitch deck generation finished.");
-    } catch (error) {
-      console.error("Deck generation failed:", error);
-      alert("Failed to create pitch deck.");
-    } finally {
-      setIsGeneratingDeck(false);
-    }
-  };
-
-  const handleFindFunding = async () => {
-    if (!blueprint || !blueprint.id) return;
-    console.log("Finding funding...");
-    setIsFindingFunding(true);
-    try {
-      console.log("Sending API request to /api/funding...");
-      const response = await api.post('/api/funding', { blueprint });
-      console.log("Funding API response:", response.data);
-      const opps = response.data;
-      const updatedBlueprint = { ...blueprint, funding_opportunities: opps };
-      
-      try {
-        console.log("Updating Firestore with funding opportunities...");
-        await updateDoc(doc(db, "blueprints", blueprint.id), { funding_opportunities: opps });
-        console.log("Firestore updated.");
-      } catch (firestoreError) {
-        console.error("Firestore update failed for funding:", firestoreError);
-      }
-      
-      setBlueprint(updatedBlueprint);
-      setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
-      console.log("Funding search finished.");
-    } catch (error) {
-      console.error("Funding search failed:", error);
-      alert("Failed to find funding opportunities.");
-    } finally {
-      setIsFindingFunding(false);
-    }
-  };
-
   return (
-    <div className="flex h-screen bg-slate-950 text-gray-200 overflow-hidden font-sans">
-      <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col p-6 space-y-8 print:hidden">
-        <div className="flex items-center gap-3 px-2">
-          <div className="bg-white/5 p-1 rounded-xl shadow-lg border border-white/10">
-            <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain rounded-lg" />
-          </div>
-          <h1 className="font-bold text-2xl tracking-tighter text-white">AutoThinker X</h1>
+    <div className="min-h-screen bg-[#050505] text-slate-200 selection:bg-indigo-500/30">
+      {/* Sidebar / Nav */}
+      <nav className="fixed left-0 top-0 bottom-0 w-20 bg-black/40 border-r border-white/5 flex flex-col items-center py-8 gap-8 z-50">
+        <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-600/20 mb-4">
+          <BrainCircuit size={28} className="text-white" />
         </div>
-        <nav className="flex-1 space-y-2">
-          <NavItem icon={<Sparkles size={20} />} label="Gen Engine" active={view === 'generate' || view === 'view'} onClick={() => { setView('generate'); setBlueprint(null); }} />
-          <NavItem icon={<LayoutDashboard size={20} />} label="Blueprints" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
-          <NavItem icon={<History size={20} />} label="Agent Logs" active={view === 'history'} onClick={() => setView('history')} />
-        </nav>
-        <div className="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 space-y-4">
-          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Agent Network (Groq Powered)</p>
-          <div className="space-y-3">
-            <StatusItem label="Venture Architect" online={true} />
-            <StatusItem label="Market Intelligence" online={true} />
-            <StatusItem label="Growth Marketing" online={true} />
-            <StatusItem label="Asset Specialist" online={true} />
-            <StatusItem label="Synthesis Engine" online={true} />
-          </div>
-          <div className="pt-2 border-t border-slate-700/50"><p className="text-[10px] text-indigo-400 font-bold">ALL SYSTEMS SYNCED</p></div>
+        
+        <NavButton active={view === 'generate'} onClick={() => setView('generate')} icon={<Plus />} label="New" />
+        <NavButton active={view === 'history'} onClick={() => setView('history')} icon={<History />} label="Vault" />
+        
+        <div className="mt-auto p-4 opacity-20 hover:opacity-100 transition-opacity">
+          <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></div>
         </div>
-      </aside>
+      </nav>
 
-      <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-        <div className="max-w-6xl mx-auto">
+      <main className="pl-20 min-h-screen relative overflow-hidden">
+        {/* Background Gradients */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+
+        <div className="max-w-6xl mx-auto px-8 pt-12 pb-24">
           <AnimatePresence mode="wait">
             {view === 'generate' && (
-              <motion.div key="generate" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center justify-center min-h-[80vh] space-y-12">
-                <div className="text-center space-y-6">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2"><Zap size={14} /> Groq Llama 3 Intelligence Live</div>
-                  <h2 className="text-6xl font-black text-white tracking-tight leading-none">From Idea to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500">Execution.</span></h2>
-                  <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">Enter your vision below. Our multi-agent Groq network will collaborate to architect your business strategy and launch roadmap.</p>
+              <motion.div 
+                key="generate"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="max-w-3xl mx-auto space-y-12 py-12"
+              >
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest">
+                    <Sparkles size={12} /> AutoThinker X OS • V3.0
+                  </div>
+                  <h1 className="text-7xl font-black text-white tracking-tighter">
+                    Venture <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Architect.</span>
+                  </h1>
+                  <p className="text-gray-400 text-lg max-w-xl mx-auto font-medium">
+                    Transform raw ideas into investor-ready business blueprints using a parallel multi-agent neural chain.
+                  </p>
                 </div>
-                <div className="w-full max-w-3xl relative">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-20 transition duration-1000"></div>
-                  <div className="relative flex flex-col bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-700/50 p-2 shadow-2xl">
-                    <label htmlFor="startupIdea" className="sr-only">Startup Idea</label>
-                    <textarea id="startupIdea" name="startupIdea" placeholder="e.g. A decentralised coffee supply chain tracking tool..." value={idea} onChange={(e) => setIdea(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-8 min-h-[200px] text-xl resize-none placeholder:text-gray-700 font-light" />
-                    <button onClick={startVoiceInput} className={`absolute top-8 right-8 p-3 rounded-2xl border transition-all ${isListening ? 'bg-red-500/20 border-red-500 text-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800/50 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-800'}`}><Zap className={isListening ? 'animate-pulse' : ''} size={20} /></button>
-                    <div className="flex justify-between items-center px-6 pb-6 pt-2">
-                       <div className="flex flex-col gap-3">
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Groq Accelerated</span>
-                            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Market Alignment</span>
-                          </div>
-                          <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700/50 w-fit">
-                            <button onClick={() => setBranding('tech-bold')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'tech-bold' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Tech Bold</button>
-                            <button onClick={() => setBranding('corporate-clean')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'corporate-clean' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Corporate</button>
-                            <button onClick={() => setBranding('playful-modern')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${branding === 'playful-modern' ? 'bg-pink-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Playful</button>
-                          </div>
-                          <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700/50 w-fit">
-                            <button onClick={() => setComplexity('low')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${complexity === 'low' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Low</button>
-                            <button onClick={() => setComplexity('medium')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${complexity === 'medium' ? 'bg-yellow-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>Medium</button>
-                            <button onClick={() => setComplexity('high')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${complexity === 'high' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>High</button>
-                          </div>
-                       </div>
-                      <button onClick={handleGenerate} disabled={loading || !idea.trim()} className="btn btn-primary px-10 py-4 rounded-2xl flex items-center gap-3 text-lg group">{loading ? <><Loader2 className="animate-spin" size={24} /><span className="animate-pulse">{loadingStep || 'Thinking...'}</span></> : <>Generate Venture<ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" /></>}</button>
+
+                <div className="card-base p-2 bg-white/5 backdrop-blur-3xl border-white/10 shadow-2xl">
+                  <div className="relative">
+                    <textarea
+                      value={idea}
+                      onChange={(e) => setIdea(e.target.value)}
+                      placeholder="Describe your startup vision in detail..."
+                      className="w-full h-48 bg-transparent p-6 text-xl text-white placeholder:text-gray-600 resize-none outline-none font-medium"
+                    />
+                    <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                      <button 
+                        onClick={startVoiceInput}
+                        className={`p-3 rounded-xl transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+                      >
+                        {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                      </button>
+                      <button 
+                        onClick={handleGenerate}
+                        disabled={loading || !idea}
+                        className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-600/20"
+                      >
+                        {loading ? <Loader2 className="animate-spin" size={20} /> : <Zap size={20} />}
+                        {loading ? 'Orchestrating...' : 'Build Venture'}
+                      </button>
                     </div>
                   </div>
+                </div>
+
+                {loading && (
+                  <div className="space-y-4 text-center">
+                    <div className="flex justify-center gap-2">
+                      {[1,2,3].map(i => <div key={i} className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay: `${i*0.2}s`}}></div>)}
+                    </div>
+                    <p className="text-xs font-black text-indigo-400 uppercase tracking-widest animate-pulse">{loadingStep}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-4">
+                  <BrandingOption active={branding === 'tech-bold'} onClick={() => setBranding('tech-bold')} label="Tech Bold" desc="Futuristic & High Energy" />
+                  <BrandingOption active={branding === 'corporate-clean'} onClick={() => setBranding('corporate-clean')} label="Corporate" desc="Clean & Trust-Focused" />
+                  <BrandingOption active={branding === 'playful-modern'} onClick={() => setBranding('playful-modern')} label="Playful" desc="Modern & Accessible" />
+                </div>
+              </motion.div>
+            )}
+
+            {view === 'history' && (
+              <motion.div 
+                key="history"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-8"
+              >
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h2 className="text-4xl font-black text-white tracking-tight">Venture Vault</h2>
+                    <p className="text-gray-500 font-medium">Your historical business blueprints and assets.</p>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Search blueprints..."
+                      className="bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-indigo-500/50 w-64"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {historyLoading ? (
+                    [1,2,3,4,5,6].map(i => <div key={i} className="h-48 card-base animate-pulse"></div>)
+                  ) : (
+                    history.filter(b => b.venture.name.toLowerCase().includes(searchQuery.toLowerCase())).map((b) => (
+                      <div 
+                        key={b.id} 
+                        onClick={() => { setBlueprint(b); setView('view'); }}
+                        className="card-base group cursor-pointer hover:border-indigo-500/50 transition-all p-6 relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+                          <BrainCircuit size={80} />
+                        </div>
+                        <div className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-2">Venture OS Blueprint</div>
+                        <h3 className="text-xl font-bold text-white mb-1 group-hover:text-indigo-400 transition-colors">{b.venture.name}</h3>
+                        <p className="text-gray-500 text-xs line-clamp-2 mb-4 italic">"{b.venture.tagline}"</p>
+                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                          <span className="text-[10px] text-gray-600 font-bold">{new Date(b.createdAt?.seconds * 1000).toLocaleDateString()}</span>
+                          <ArrowRight size={16} className="text-gray-600 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </motion.div>
             )}
 
             {view === 'view' && blueprint && (
-              <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20">
-                <div className="flex justify-between items-center mb-12">
-                  <button onClick={() => setView('generate')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors py-2"><ArrowRight size={20} className="rotate-180" />Back to Laboratory</button>
-                  <div className="flex items-center gap-4"><span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Model: Llama 3 70B (Groq)</span><button onClick={() => handleGenerate()} disabled={loading} className="btn btn-secondary py-2 px-4 text-xs font-bold"><RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} /> Re-Think</button></div>
+              <motion.div 
+                key="view"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className="mb-8">
+                  <button onClick={() => setView('history')} className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest">
+                    <ArrowRight size={16} className="rotate-180" /> Back to Vault
+                  </button>
                 </div>
-                <BlueprintView blueprint={blueprint} onGenerateDeck={handleGeneratePitchDeck} onFindFunding={handleFindFunding} onPrint={handlePrint} isGeneratingDeck={isGeneratingDeck} isFindingFunding={isFindingFunding} />
-              </motion.div>
-            )}
-
-            {(view === 'dashboard' || view === 'history') && (
-              <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div><h2 className="text-4xl font-black text-white tracking-tight">Project Blueprints</h2><p className="text-gray-500 mt-1">Manage and evolve your generated architectures.</p></div>
-                  <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:flex-none">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                      <label htmlFor="searchWorkspace" className="sr-only">Search Workspace</label>
-                      <input id="searchWorkspace" name="searchWorkspace" type="text" placeholder="Search workspace..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-600 outline-none transition-all" />
-                    </div>
-                    <button onClick={fetchHistory} className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-gray-400 hover:text-white transition-colors"><RefreshCw size={20} className={historyLoading ? "animate-spin" : ""} /></button>
-                    <button onClick={() => setView('generate')} className="btn btn-primary py-2.5 px-5 rounded-xl text-sm flex items-center gap-2"><Plus size={18} /> New</button>
-                  </div>
-                </div>
-                {historyLoading ? (
-                  <div className="flex flex-col justify-center items-center h-96 space-y-4"><Loader2 className="animate-spin text-indigo-500" size={56} /><p className="text-gray-500 animate-pulse font-medium">Retrieving workspace data...</p></div>
-                ) : filteredHistory.length === 0 ? (
-                  <div className="card-base text-center py-32 bg-slate-900/30 border-dashed border-slate-800"><div className="bg-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"><BrainCircuit className="text-gray-600" size={32} /></div><h3 className="text-xl font-bold text-gray-300 mb-2">No Blueprints Found</h3><p className="text-gray-500 max-w-sm mx-auto">Start generating to see your plans here.</p></div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredHistory.map((bp) => (
-                      <motion.div key={bp.id} layoutId={bp.id} className="card-base bg-slate-900/50 hover:bg-slate-900 hover:border-indigo-500/50 cursor-pointer group relative overflow-hidden" onClick={() => { setBlueprint(bp); setView('view'); }}>
-                        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); handleDelete(bp.id!); }} className="p-1.5 text-gray-600 hover:text-red-500 bg-slate-800/50 rounded-lg backdrop-blur-md"><Trash2 size={16} /></button></div>
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2"><Sparkles size={16} className="text-indigo-500" /><h3 className="font-bold text-lg text-white group-hover:text-indigo-400 transition-colors line-clamp-1">{bp.name}</h3></div>
-                          <p className="text-sm text-gray-500 line-clamp-3 min-h-[4.5rem] leading-relaxed">{bp.pitch}</p>
-                          <div className="flex justify-between items-center text-[10px] text-gray-600 border-t border-slate-800 mt-6 pt-4"><span><History size={12} /> {new Date(bp.updatedAt!).toLocaleDateString()}</span><span className="font-black uppercase tracking-widest text-indigo-500/80 group-hover:text-indigo-400">Expand Blueprint</span></div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
+                <BlueprintView 
+                  blueprint={blueprint} 
+                  deck={deck}
+                  isGeneratingDeck={isGeneratingDeck}
+                  onPrint={() => window.print()}
+                  onGenerateDeck={handleGenerateDeck}
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -379,20 +282,26 @@ export default function App() {
   );
 }
 
-function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+function NavButton({ active, onClick, icon, label }: any) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${active ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-600/20' : 'text-gray-500 hover:text-gray-200 hover:bg-slate-800'}`}>{icon}{label}</button>
+    <button 
+      onClick={onClick}
+      className={`group relative flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${active ? 'bg-indigo-500/10 text-indigo-400' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+    >
+      {React.cloneElement(icon, { size: 24 })}
+      <span className="text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4">{label}</span>
+    </button>
   );
 }
 
-function StatusItem({ label, online }: { label: string, online: boolean }) {
+function BrandingOption({ active, onClick, label, desc }: any) {
   return (
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-gray-400">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <div className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-gray-600'}`}></div>
-        <span className={online ? 'text-green-500/80' : 'text-gray-600'}>{online ? 'Online' : 'Offline'}</span>
-      </div>
-    </div>
+    <button 
+      onClick={onClick}
+      className={`text-left p-4 rounded-2xl border transition-all ${active ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+    >
+      <div className={`text-xs font-black uppercase tracking-widest mb-1 ${active ? 'text-indigo-400' : 'text-gray-500'}`}>{label}</div>
+      <div className="text-[10px] text-gray-600 font-medium">{desc}</div>
+    </button>
   );
 }

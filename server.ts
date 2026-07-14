@@ -6,7 +6,8 @@ import dotenv from "dotenv";
 import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
-import * as AgentService from "./src/services/agents";
+import { orchestrateVenture } from "./src/ai/agents/orchestrator";
+import { generatePitchDeck } from "./src/ai/agents/pitchDeck";
 
 dotenv.config();
 
@@ -15,7 +16,6 @@ async function startServer() {
   const PORT = parseInt(process.env.PORT || "3000", 10);
   const isProd = process.env.NODE_ENV === "production";
 
-  // Security and performance middleware
   app.use(helmet({
     contentSecurityPolicy: false,
   }));
@@ -27,10 +27,10 @@ async function startServer() {
   // AI Orchestration Endpoints
   app.post("/api/chat", async (req: Request, res: Response) => {
     try {
-      const { idea, branding, complexity } = req.body;
+      const { idea, branding } = req.body;
       if (!idea) return res.status(400).json({ error: "Idea is required" });
       
-      const blueprint = await AgentService.generateStartupBlueprint(idea, branding || 'tech-bold', complexity || 'medium');
+      const blueprint = await orchestrateVenture(idea, branding || 'tech-bold');
       res.json(blueprint);
     } catch (error: any) {
       console.error("Agent Orchestration Error:", error);
@@ -41,7 +41,8 @@ async function startServer() {
   app.post("/api/deck", async (req: Request, res: Response) => {
     try {
       const { blueprint } = req.body;
-      const deck = await AgentService.generatePitchDeck(blueprint);
+      if (!blueprint) return res.status(400).json({ error: "Blueprint is required" });
+      const deck = await generatePitchDeck(blueprint);
       res.json(deck);
     } catch (error: any) {
       console.error("Pitch Deck Generation Error:", error);
@@ -49,20 +50,8 @@ async function startServer() {
     }
   });
 
-  app.post("/api/funding", async (req: Request, res: Response) => {
-    try {
-      const { blueprint } = req.body;
-      const funding = await AgentService.findFunding(blueprint);
-      res.json(funding);
-    } catch (error: any) {
-      console.error("Funding Search Error:", error);
-      res.status(500).json({ error: "Funding Service Error", details: error.message });
-    }
-  });
-
-  // Health check
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", environment: process.env.NODE_ENV });
+    res.json({ status: "ok", environment: process.env.NODE_ENV, provider: "groq-deepseek" });
   });
 
   // Vite/Static serving

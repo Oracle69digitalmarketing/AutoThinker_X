@@ -7,21 +7,20 @@
 
 @layer base {
   body {
-    @apply bg-slate-900 text-gray-200;
-    background: linear-gradient(to bottom, transparent, #020617) #0f172a;
+    @apply bg-[#050505] text-slate-200;
     min-height: 100vh;
   }
 }
 
 @layer utilities {
   .animate-fade-in {
-    animation: fadeIn 0.5s ease-in-out;
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
@@ -30,47 +29,10 @@
   }
 
   .card-base {
-    @apply bg-slate-800/60 p-6 rounded-xl shadow-lg border border-slate-700 transition-all duration-300;
-  }
-
-  .card-glow {
-    @apply relative bg-slate-800/60 rounded-xl shadow-lg border border-slate-700 overflow-hidden;
-  }
-
-  .card-glow::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: conic-gradient(
-      transparent,
-      rgba(139, 92, 246, 0.4),
-      transparent 30%
-    );
-    animation: rotate 4s linear infinite;
-  }
-
-  .card-glow > * {
-    @apply relative z-10;
-  }
-
-  @keyframes rotate {
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-
-  .btn {
-    @apply flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed cursor-pointer;
+    @apply bg-white/[0.03] backdrop-blur-3xl p-8 rounded-3xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] transition-all duration-500 hover:bg-white/[0.05] hover:border-white/[0.12];
   }
 
   .btn-primary {
-    @apply bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-900/50 shadow-[0_0_15px_rgba(99,102,241,0.5)];
-  }
-
-  .btn-secondary {
-    @apply bg-slate-700 text-white hover:bg-slate-600;
+    @apply bg-indigo-600 text-white hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] active:scale-95;
   }
 }
