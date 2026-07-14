@@ -112,6 +112,12 @@ export interface RoadmapPhase {
   milestones?: string[];
 }
 
+export interface PitchSlide {
+  title: string;
+  content: string;
+  visual_cue: string;
+}
+
 export interface Blueprint {
   id?: string;
   name: string;
@@ -142,4 +148,22 @@ export interface Blueprint {
 
   updatedAt?: any;
   status?: string;
+
+  pitch_deck?: PitchSlide[];
+  funding_opportunities?: FundingOpportunity[];
+}
+
+declare global {
+  interface ImportMeta {
+    env: {
+      [key: string]: string | boolean | undefined;
+      VITE_FIREBASE_API_KEY: string;
+      VITE_FIREBASE_AUTH_DOMAIN: string;
+      VITE_FIREBASE_PROJECT_ID: string;
+      VITE_FIREBASE_STORAGE_BUCKET: string;
+      VITE_FIREBASE_MESSAGING_SENDER_ID: string;
+      VITE_FIREBASE_APP_ID: string;
+      VITE_FIREBASE_MEASUREMENT_ID: string;
+    };
+  }
 }
