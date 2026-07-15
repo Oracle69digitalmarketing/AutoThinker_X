@@ -353,7 +353,13 @@ export default function App() {
               )}
 
               {(view === 'dashboard' || view === 'history' || view === 'exports') && (
-                 <div className="space-y-10">
+                 <motion.div 
+                   key="history-view"
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   exit={{ opacity: 0 }}
+                   className="space-y-10"
+                 >
                     <div className="flex justify-between items-center">
                        <div>
                           <h2 className="text-4xl font-black text-white tracking-tight">
@@ -372,7 +378,7 @@ export default function App() {
                     </div>
 
                     {view === 'exports' ? (
-                      <ExportCards />
+                      <ExportCards blueprint={blueprint || history[0]} />
                     ) : historyLoading ? (
                        <div className="flex flex-col items-center justify-center h-96 space-y-4">
                           <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -380,7 +386,7 @@ export default function App() {
                        </div>
                     ) : (
                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {history.filter(bp => bp.name.toLowerCase().includes(search.toLowerCase())).map((bp) => (
+                          {history.filter(bp => bp.name?.toLowerCase().includes(search.toLowerCase())).map((bp) => (
                              <div 
                                 key={bp.id} 
                                 onClick={() => { setBlueprint(bp); setView('view'); }}
