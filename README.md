@@ -58,5 +58,20 @@ The platform now features a **Live Agent Swarm** where users can monitor the rea
 *   **State**: Reactive Hook Architecture
 *   **Exports**: docx, jspdf, pptxgenjs, exceljs
 
+## 🧩 Prompt Operating System (VOS v4)
+AutoThinker X utilizes a modular, markdown-based Prompt Operating System to manage AI agent behaviors as first-class assets.
+
+### Key Features
+*   **Modular Prompt Files**: Prompts are separated from application code in `/prompts`, improving maintainability.
+*   **PromptLoader Service**: A dedicated service for loading, parsing, and injecting dynamic context variables (`{{idea}}`, etc.).
+*   **PromptManager Service**: Handles caching, hot-reloading in development, and structural validation of prompts.
+*   **Versioning**: Each prompt file contains metadata (`version`, `author`, `last_updated`) for lifecycle management.
+*   **Standardized Schema**: Agents enforce a strict JSON output structure (`{ "agent": string, "output": object, "confidence": number }`) ensuring predictable integration with the orchestrator.
+
+### Adding New Agents
+1.  Create a new file in `/prompts` (e.g., `new_agent.md`).
+2.  Follow the template: include `Role`, `Objective`, `Responsibilities`, and a standardized `JSON schema`.
+3.  Register the new agent in the `mapAgentToPrompt` function within `src/ai/agents/orchestrator.ts` if a specific mapping is needed.
+
 ---
 *Built with AutoThinker AI — The future of venture building is agentic.*
