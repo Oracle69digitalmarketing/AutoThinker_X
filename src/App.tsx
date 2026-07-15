@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import axios from 'axios';
 
 import { Blueprint } from './types';
-import { db, auth } from './firebase';
 
 // New UI Components
 import { Sidebar } from './components/Sidebar';
@@ -14,248 +11,63 @@ import { LoadingPanel } from './components/LoadingPanel';
 import { BlueprintView } from './components/BlueprintView';
 import { ExportCards } from './components/ExportCards';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error Details: ', JSON.stringify(errInfo));
-}
-
-function removeUndefined(obj: any): any {
-  if (obj === undefined) return null;
-  if (obj === null || typeof obj !== 'object') return obj;
-
-  if (Array.isArray(obj)) {
-    return obj.map(item => removeUndefined(item));
-  }
-
-  const newObj: any = {};
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const val = obj[key];
-      if (val === undefined) {
-        const sensibleDefaults: Record<string, any> = {
-          branding: 'tech-bold',
-          idea: '',
-          version: '1.0.0',
-          provider: 'groq-deepseek',
-          status: 'complete',
-          generation_time: 0,
-          confidence: 0,
-          downloads: 0
-        };
-        newObj[key] = sensibleDefaults[key] !== undefined ? sensibleDefaults[key] : null;
-      } else {
-        newObj[key] = removeUndefined(val);
-      }
-    }
-  }
-  return newObj;
-}
+// Hooks
+import { useBlueprint } from './hooks/useBlueprint';
+import { useHistory } from './hooks/useHistory';
+import { useVoice } from './hooks/useVoice';
 
 type ViewMode = 'dashboard' | 'generate' | 'history' | 'view' | 'exports' | 'settings' | 'help';
-
-const api = axios.create({
-  baseURL: window.location.origin,
-  timeout: 300000 
-});
 
 export default function App() {
   const [view, setView] = useState<ViewMode>('generate');
   const [idea, setIdea] = useState('');
   const [branding, setBranding] = useState<'tech-bold' | 'corporate-clean' | 'playful-modern'>('tech-bold');
   const [complexity, setComplexity] = useState<'low' | 'medium' | 'high'>('medium');
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState('');
-  const [isGeneratingDeck, setIsGeneratingDeck] = useState(false);
-  const [isFindingFunding, setIsFindingFunding] = useState(false);
-  const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
-  const [history, setHistory] = useState<Blueprint[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+
+  const {
+    history,
+    setHistory,
+    historyLoading,
+    search,
+    setSearch,
+    filteredHistory,
+    fetchHistory,
+    deleteHistory,
+    refreshHistory
+  } = useHistory();
+
+  const {
+    blueprint,
+    setBlueprint,
+    loading,
+    loadingStep,
+    isGeneratingDeck,
+    isFindingFunding,
+    generateBlueprint,
+    handleGeneratePitchDeck,
+    handleFindFunding
+  } = useBlueprint(setHistory);
+
+  const { isListening, startVoiceInput } = useVoice((transcript) => {
+    setIdea(prev => prev ? `${prev} ${transcript}` : transcript);
+  });
 
   useEffect(() => {
     if (view === 'dashboard' || view === 'history') {
       fetchHistory();
     }
-  }, [view]);
-
-  const fetchHistory = async () => {
-    setHistoryLoading(true);
-    const path = "blueprints";
-    try {
-      const q = query(collection(db, path), orderBy("updatedAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      const docs = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data(),
-        updatedAt: doc.data().updatedAt instanceof Timestamp ? doc.data().updatedAt.toDate().toISOString() : doc.data().updatedAt
-      } as Blueprint));
-      setHistory(docs);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const handleRefresh = () => {
-    console.log("Refreshing data...");
-    fetchHistory();
-  };
+  }, [view, fetchHistory]);
 
   const handleGenerate = async () => {
-    if (!idea.trim()) return;
-    console.log("Generate clicked with idea:", idea);
-    setLoading(true);
-    
     try {
-      setLoadingStep(`Orchestrating ${complexity.toUpperCase()} Complexity Chain...`);
-      console.log("Sending API request to /api/chat");
-      const response = await api.post('/api/chat', { idea, branding, complexity });
-      console.log("API response received:", response.data);
-      
-      const newBlueprint: Blueprint = response.data;
-      console.log("Blueprint parsed:", newBlueprint.name);
-      setBlueprint(newBlueprint);
-      
-      const path = "blueprints";
-      try {
-        const optimizedStorage = removeUndefined({
-          name: newBlueprint.name,
-          timestamp: Timestamp.now(),
-          summary: newBlueprint.pitch,
-          branding: newBlueprint.branding,
-          blueprint: newBlueprint,
-          updatedAt: Timestamp.now(),
-          status: 'complete'
-        });
-        console.log("Firestore document to save:", optimizedStorage);
-        const docRef = await addDoc(collection(db, path), optimizedStorage);
-        console.log("Firestore saved successfully with ID:", docRef.id);
-        setBlueprint({ ...newBlueprint, id: docRef.id });
-      } catch (firestoreError) {
-        console.error("Firestore save failed:", firestoreError);
-        handleFirestoreError(firestoreError, OperationType.CREATE, path);
-        alert("Warning: Blueprint generated but failed to save to cloud history. You can still view it now, but it may not be available later.");
+      const newBlueprint = await generateBlueprint(idea, branding, complexity);
+      if (newBlueprint) {
+        console.log("Transitioning to 'view' mode");
+        setView('view');
       }
-      console.log("Transitioning to 'view' mode");
-      setView('view');
-    } catch (error: any) {
-      console.error("Generation failed:", error);
-      alert(error.response?.data?.error || error.message || "AI Service Unavailable.");
-    } finally {
-      console.log("Resetting loading states");
-      setLoading(false);
-      setLoadingStep('');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this blueprint?")) return;
-    const path = `blueprints/${id}`;
-    try {
-      await deleteDoc(doc(db, "blueprints", id));
-      setHistory(prev => prev.filter(b => b.id !== id));
-      if (blueprint?.id === id) setBlueprint(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      // Error handled in hook
     }
-  };
-
-  const handleGeneratePitchDeck = async () => {
-    if (!blueprint || !blueprint.id) return;
-    setIsGeneratingDeck(true);
-    try {
-      const response = await api.post('/api/deck', { blueprint });
-      const slides = response.data;
-      const updatedBlueprint = { ...blueprint, pitch_deck: slides };
-      try {
-        const sanitizedData = removeUndefined({ pitch_deck: slides });
-        await updateDoc(doc(db, "blueprints", blueprint.id), sanitizedData);
-      } catch (firestoreError) {
-        console.error("Firestore save failed:", firestoreError);
-        alert("Warning: Pitch deck generated but failed to save to cloud history.");
-      }
-      setBlueprint(updatedBlueprint);
-      setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
-    } catch (error) {
-      alert("Failed to create pitch deck.");
-    } finally {
-      setIsGeneratingDeck(false);
-    }
-  };
-
-  const handleFindFunding = async () => {
-    if (!blueprint || !blueprint.id) return;
-    setIsFindingFunding(true);
-    try {
-      const response = await api.post('/api/funding', { blueprint });
-      const opps = response.data;
-      const updatedBlueprint = { ...blueprint, funding_opportunities: opps };
-      try {
-        const sanitizedData = removeUndefined({ funding_opportunities: opps });
-        await updateDoc(doc(db, "blueprints", blueprint.id), sanitizedData);
-      } catch (firestoreError) {
-        console.error("Firestore save failed:", firestoreError);
-        alert("Warning: Funding opportunities found but failed to save to cloud history.");
-      }
-      setBlueprint(updatedBlueprint);
-      setHistory(prev => prev.map(b => b.id === blueprint.id ? updatedBlueprint : b));
-    } catch (error) {
-      alert("Failed to find funding opportunities.");
-    } finally {
-      setIsFindingFunding(false);
-    }
-  };
-
-  const startVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert("Voice input is not supported.");
-      return;
-    }
-    // @ts-ignore
-    const recognition = new window.webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setIdea(prev => prev ? `${prev} ${transcript}` : transcript);
-      setIsListening(false);
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
   };
 
   const getHeaderTitle = () => {
@@ -279,7 +91,7 @@ export default function App() {
         <Header 
           title={getHeaderTitle()} 
           subtitle={view === 'view' ? blueprint?.tagline : undefined}
-          onRefresh={handleRefresh}
+          onRefresh={refreshHistory}
           search={search}
           setSearch={setSearch}
         />
@@ -386,7 +198,7 @@ export default function App() {
                        </div>
                     ) : (
                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {history.filter(bp => bp.name?.toLowerCase().includes(search.toLowerCase())).map((bp) => (
+                          {filteredHistory.map((bp) => (
                              <div 
                                 key={bp.id} 
                                 onClick={() => { setBlueprint(bp); setView('view'); }}
@@ -394,7 +206,11 @@ export default function App() {
                              >
                                 <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
                                    <button 
-                                     onClick={(e) => { e.stopPropagation(); handleDelete(bp.id!); }}
+                                     onClick={async (e) => { 
+                                       e.stopPropagation(); 
+                                       const deleted = await deleteHistory(bp.id!);
+                                       if (deleted && blueprint?.id === bp.id) setBlueprint(null);
+                                     }}
                                      className="p-2 bg-slate-800 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-all"
                                    >
                                       Delete
@@ -421,7 +237,7 @@ export default function App() {
                           ))}
                        </div>
                     )}
-                 </div>
+                 </motion.div>
               )}
             </motion.div>
           </AnimatePresence>
