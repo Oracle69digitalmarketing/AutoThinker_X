@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Bell, Search, Globe, Moon, 
-  Cpu, Zap, ChevronRight 
+  Cpu, Zap, ChevronRight, X 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -12,6 +12,8 @@ interface HeaderProps {
   onRefresh?: () => void;
   search: string;
   setSearch: (val: string) => void;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -21,9 +23,21 @@ export const Header: React.FC<HeaderProps> = ({
   latency = "1.2s",
   onRefresh,
   search,
-  setSearch
+  setSearch,
+  theme,
+  toggleTheme
 }) => {
   const [showSearch, setShowSearch] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const handleToggleSearch = () => {
+      setShowSearch(true);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    };
+    window.addEventListener('toggle-search', handleToggleSearch);
+    return () => window.removeEventListener('toggle-search', handleToggleSearch);
+  }, []);
 
   return (
     <header className="h-20 bg-slate-950/40 backdrop-blur-md border-b border-slate-800/50 flex items-center justify-between px-10 sticky top-0 z-40 print:hidden">
@@ -47,14 +61,23 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative animate-in slide-in-from-top-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
             <input 
+              ref={inputRef}
               autoFocus
               type="text" 
               placeholder="Search blueprints..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onBlur={() => !search && setShowSearch(false)}
-              className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50"
+              onKeyDown={(e) => e.key === 'Escape' && setShowSearch(false)}
+              className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-2 pl-10 pr-10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50"
             />
+            {search && (
+              <button 
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -79,17 +102,27 @@ export const Header: React.FC<HeaderProps> = ({
             <Search size={18} />
           </button>
           <button 
-            onClick={onRefresh}
+            onClick={() => {
+              if (onRefresh) onRefresh();
+            }}
+            title="Refresh Data"
             className="p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all"
           >
             <Zap size={18} />
           </button>
           <div className="w-px h-6 bg-slate-800 mx-1"></div>
-          <button className="p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all">
+          <button 
+            title="Language: English"
+            className="p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all"
+          >
             <Globe size={18} />
           </button>
-          <button className="p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all">
-            <Moon size={18} />
+          <button 
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            className="p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all"
+          >
+            {theme === 'dark' ? <Moon size={18} /> : <Zap size={18} className="rotate-180" />}
           </button>
         </div>
       </div>

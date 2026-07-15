@@ -1,11 +1,11 @@
 import { useState } from 'react';
 
-export const useVoice = (onTranscript: (transcript: string) => void) => {
+export const useVoice = (onTranscript: (transcript: string) => void, addToast: (type: any, message: string) => void) => {
   const [isListening, setIsListening] = useState(false);
 
   const startVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window)) {
-      alert("Voice input is not supported.");
+      addToast('warning', "Voice input is not supported in this browser.");
       return;
     }
     // @ts-ignore

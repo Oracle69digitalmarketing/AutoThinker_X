@@ -23,9 +23,10 @@ interface BlueprintViewProps {
   blueprint: Blueprint;
   onGenerateDeck?: () => void;
   onFindFunding?: () => void;
-  onPrint?: () => void;
+  onExportPDF?: (type: 'executive-summary' | 'technical-architecture' | 'marketing-playbook') => void;
   isGeneratingDeck?: boolean;
   isFindingFunding?: boolean;
+  addToast: (type: any, message: string) => void;
 }
 
 type TabType = 'overview' | 'customers' | 'market' | 'competition' | 'product' | 'technology' | 'marketing' | 'financials' | 'funding' | 'execution' | 'documents' | 'logs';
@@ -34,11 +35,32 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   blueprint, 
   onGenerateDeck, 
   onFindFunding,
-  onPrint,
+  onExportPDF,
   isGeneratingDeck,
-  isFindingFunding
+  isFindingFunding,
+  addToast
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  const handleShare = async () => {
+    const shareData = {
+      title: `Venture Blueprint: ${blueprint.name}`,
+      text: blueprint.pitch,
+      url: window.location.href,
+    };
+
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+        addToast('success', 'Shared successfully');
+      } catch (err) {
+        // User cancelled
+      }
+    } else {
+      await navigator.clipboard.writeText(`${blueprint.name} - ${blueprint.tagline}\n\nView here: ${window.location.href}`);
+      addToast('success', 'Link copied to clipboard!');
+    }
+  };
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <Sparkles size={18} /> },
@@ -93,16 +115,13 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
           </p>
           <div className="flex items-center gap-4 pt-4">
             <button 
-              onClick={() => {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url).then(() => alert("Blueprint link copied to clipboard!"));
-              }} 
+              onClick={handleShare} 
               className="flex items-center gap-2 px-6 py-3 bg-white text-slate-950 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
             >
               <Share2 size={18} /> Share Blueprint
             </button>
             <button 
-              onClick={onPrint}
+              onClick={() => onExportPDF?.('executive-summary')}
               className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all border border-slate-700"
             >
               <Download size={18} /> PDF Export
@@ -428,7 +447,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             <div className="space-y-8">
                <SectionCard title="Asset Repository" icon={<FileText className="text-indigo-400" />}>
                   <p className="text-slate-400 mb-10 max-w-2xl">Generated professional documentation ready for investor review and internal execution.</p>
-                  <ExportCards blueprint={blueprint} />
+                  <ExportCards blueprint={blueprint} addToast={addToast} />
                </SectionCard>
                {blueprint.pitch_deck && blueprint.pitch_deck.length > 0 && (
                   <SectionCard title="Investor Presentation" icon={<Presentation className="text-blue-400" />}>

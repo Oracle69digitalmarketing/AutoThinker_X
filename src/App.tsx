@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Search } from 'lucide-react';
 
 import { Blueprint } from './types';
 
@@ -10,11 +11,19 @@ import { Hero } from './components/Hero';
 import { LoadingPanel } from './components/LoadingPanel';
 import { BlueprintView } from './components/BlueprintView';
 import { ExportCards } from './components/ExportCards';
+import { SettingsView } from './components/views/SettingsView';
+import { HelpView } from './components/views/HelpView';
 
 // Hooks
 import { useBlueprint } from './hooks/useBlueprint';
 import { useHistory } from './hooks/useHistory';
 import { useVoice } from './hooks/useVoice';
+import { useTheme } from './hooks/useTheme';
+import { useSettings } from './hooks/useSettings';
+
+// UI Components
+import { ToastContainer, Toast, ToastType } from './components/ui/Toast';
+import { Modal } from './components/ui/Modal';
 
 type ViewMode = 'dashboard' | 'generate' | 'history' | 'view' | 'exports' | 'settings' | 'help';
 
@@ -23,6 +32,38 @@ export default function App() {
   const [idea, setIdea] = useState('');
   const [branding, setBranding] = useState<'tech-bold' | 'corporate-clean' | 'playful-modern'>('tech-bold');
   const [complexity, setComplexity] = useState<'low' | 'medium' | 'high'>('medium');
+
+  const { theme, toggleTheme } = useTheme();
+  const { settings, updateSettings } = useSettings();
+
+  // Toast State
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = (type: ToastType, message: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, type, message }]);
+    return id;
+  };
+  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  // Modal State
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description?: string;
+    confirmLabel?: string;
+    onConfirm?: () => void;
+    variant?: 'danger' | 'info';
+  }>({ isOpen: false, title: '' });
+
+  const confirmAction = (config: {
+    title: string;
+    description?: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'info';
+  }) => {
+    setModal({ ...config, isOpen: true });
+  };
 
   const {
     history,
@@ -50,7 +91,29 @@ export default function App() {
 
   const { isListening, startVoiceInput } = useVoice((transcript) => {
     setIdea(prev => prev ? `${prev} ${transcript}` : transcript);
-  });
+  }, addToast);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        // Trigger search focus via Header if possible, or just toggle showSearch in Header
+        // For simplicity, we can dispatch a custom event or use a ref
+        window.dispatchEvent(new CustomEvent('toggle-search'));
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
+        e.preventDefault();
+        setView('generate');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
+        e.preventDefault();
+        refreshHistory();
+        addToast('success', 'Sync complete');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [refreshHistory]);
 
   useEffect(() => {
     if (view === 'dashboard' || view === 'history') {
@@ -62,11 +125,24 @@ export default function App() {
     try {
       const newBlueprint = await generateBlueprint(idea, branding, complexity);
       if (newBlueprint) {
+        addToast('success', 'Blueprint generated successfully');
         console.log("Transitioning to 'view' mode");
         setView('view');
       }
     } catch (error) {
-      // Error handled in hook
+      addToast('error', 'Generation failed');
+    }
+  };
+
+  const handleExportPDF = async (type: any) => {
+    if (!blueprint) return;
+    const toastId = addToast('loading', `Preparing ${type}...`);
+    try {
+      // @ts-ignore
+      await import('./services/export/ExportService').then(m => m.ExportService.generate(type, blueprint));
+      addToast('success', 'PDF exported successfully');
+    } catch (err) {
+      addToast('error', 'Export failed');
     }
   };
 
@@ -91,9 +167,14 @@ export default function App() {
         <Header 
           title={getHeaderTitle()} 
           subtitle={view === 'view' ? blueprint?.tagline : undefined}
-          onRefresh={refreshHistory}
+          onRefresh={() => {
+            refreshHistory();
+            addToast('success', 'Sync complete');
+          }}
           search={search}
           setSearch={setSearch}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
         <main className="flex-1 overflow-y-auto custom-scrollbar relative">
@@ -128,40 +209,23 @@ export default function App() {
                   blueprint={blueprint} 
                   onGenerateDeck={handleGeneratePitchDeck} 
                   onFindFunding={handleFindFunding} 
-                  onPrint={() => window.print()} 
+                  onExportPDF={handleExportPDF}
                   isGeneratingDeck={isGeneratingDeck} 
                   isFindingFunding={isFindingFunding} 
+                  addToast={addToast}
                 />
               )}
 
               {view === 'settings' && (
-                <div className="bg-slate-900/40 border border-slate-800/50 rounded-[2rem] p-12 text-center space-y-6">
-                  <h2 className="text-4xl font-black text-white">System Settings</h2>
-                  <p className="text-slate-400 max-w-xl mx-auto">Configure your Venture OS environment, AI model priorities, and API integrations.</p>
-                  <div className="pt-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                    {['Model Selection', 'API Keys', 'Branding Presets', 'Export Formats'].map(s => (
-                      <div key={s} className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-left cursor-pointer hover:border-indigo-500/30 transition-all">
-                        <p className="font-bold text-white">{s}</p>
-                        <p className="text-xs text-slate-500 mt-1">Configure your {s.toLowerCase()} preferences.</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <SettingsView 
+                  settings={settings}
+                  updateSettings={updateSettings}
+                  addToast={addToast}
+                />
               )}
 
               {view === 'help' && (
-                <div className="bg-slate-900/40 border border-slate-800/50 rounded-[2rem] p-12 text-center space-y-6">
-                  <h2 className="text-4xl font-black text-white">Help & Documentation</h2>
-                  <p className="text-slate-400 max-w-xl mx-auto">Everything you need to know about the AutoThinker X platform and Multi-Agent Orchestration.</p>
-                  <div className="pt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {['Getting Started', 'Agent Workflow', 'Exporting Assets', 'Troubleshooting', 'API Docs', 'Community'].map(h => (
-                      <div key={h} className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-left hover:border-indigo-500/30 transition-all cursor-pointer">
-                        <p className="font-bold text-white">{h}</p>
-                        <p className="text-xs text-slate-500 mt-1">Learn more about {h.toLowerCase()}.</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <HelpView />
               )}
 
               {(view === 'dashboard' || view === 'history' || view === 'exports') && (
@@ -190,11 +254,33 @@ export default function App() {
                     </div>
 
                     {view === 'exports' ? (
-                      <ExportCards blueprint={blueprint || history[0]} />
+                      <ExportCards blueprint={blueprint || history[0]} addToast={addToast} />
                     ) : historyLoading ? (
                        <div className="flex flex-col items-center justify-center h-96 space-y-4">
                           <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                           <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Syncing with Database...</p>
+                       </div>
+                    ) : filteredHistory.length === 0 ? (
+                       <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+                          <div className="w-24 h-24 bg-slate-900 border border-slate-800 rounded-[2rem] flex items-center justify-center text-slate-700">
+                             {search ? <Search size={40} /> : <Brain size={40} />}
+                          </div>
+                          <div className="space-y-2">
+                             <h3 className="text-2xl font-black text-white tracking-tight">
+                                {search ? 'No matches found' : 'No blueprints yet'}
+                             </h3>
+                             <p className="text-slate-500 max-w-xs mx-auto font-medium">
+                                {search ? `We couldn't find any venture data matching "${search}"` : 'Start your first autonomous generation to see blueprints here.'}
+                             </p>
+                          </div>
+                          {!search && (
+                             <button 
+                               onClick={() => setView('generate')}
+                               className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+                             >
+                               Generate First Blueprint
+                             </button>
+                          )}
                        </div>
                     ) : (
                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -208,8 +294,22 @@ export default function App() {
                                    <button 
                                      onClick={async (e) => { 
                                        e.stopPropagation(); 
-                                       const deleted = await deleteHistory(bp.id!);
-                                       if (deleted && blueprint?.id === bp.id) setBlueprint(null);
+                                       confirmAction({
+                                         title: 'Delete Blueprint',
+                                         description: 'Are you sure you want to permanently delete this venture architecture? This action cannot be undone.',
+                                         confirmLabel: 'Delete',
+                                         variant: 'danger',
+                                         onConfirm: async () => {
+                                           const deleted = await deleteHistory(bp.id!);
+                                           if (deleted) {
+                                             if (blueprint?.id === bp.id) setBlueprint(null);
+                                             addToast('success', 'Blueprint deleted successfully');
+                                           } else {
+                                             addToast('error', 'Failed to delete blueprint');
+                                           }
+                                           setModal(prev => ({ ...prev, isOpen: false }));
+                                         }
+                                       });
                                      }}
                                      className="p-2 bg-slate-800 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-all"
                                    >
@@ -243,6 +343,17 @@ export default function App() {
           </AnimatePresence>
         </main>
       </div>
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal(prev => ({ ...prev, isOpen: false }))}
+        title={modal.title}
+        description={modal.description}
+        confirmLabel={modal.confirmLabel}
+        onConfirm={modal.onConfirm}
+        variant={modal.variant}
+      />
     </div>
   );
 }

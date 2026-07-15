@@ -13,23 +13,40 @@ export const useBlueprint = (setHistory: React.Dispatch<React.SetStateAction<Blu
   const generateBlueprint = async (idea: string, branding: string, complexity: string) => {
     if (!idea.trim()) return;
     setLoading(true);
+    const steps = [
+      'Orchestrating Agent Network...',
+      'Researching Market Dynamics...',
+      'Analyzing Customer Archetypes...',
+      'Synthesizing Technical Stack...',
+      'Building Financial Projections...',
+      'Generating GTM Strategy...',
+      'Finalizing Venture Blueprint...'
+    ];
+    
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      setLoadingStep(steps[currentStep]);
+      currentStep = (currentStep + 1) % steps.length;
+    }, 3000);
+
     try {
-      setLoadingStep(`Orchestrating ${complexity.toUpperCase()} Complexity Chain...`);
       const newBlueprint = await apiService.generateBlueprint(idea, branding, complexity);
-      setBlueprint(newBlueprint);
+      clearInterval(interval);
+      setLoadingStep('Saving to Secure Database...');
       
       try {
         const id = await firestoreService.saveBlueprint(newBlueprint);
         const savedBlueprint = { ...newBlueprint, id };
         setBlueprint(savedBlueprint);
+        setHistory(prev => [savedBlueprint, ...prev]);
         return savedBlueprint;
       } catch (firestoreError) {
-        alert("Warning: Blueprint generated but failed to save to cloud history. You can still view it now, but it may not be available later.");
+        // saved but failed to save to history
         return newBlueprint;
       }
     } catch (error: any) {
+      clearInterval(interval);
       console.error("Generation failed:", error);
-      alert(error.response?.data?.error || error.message || "AI Service Unavailable.");
       throw error;
     } finally {
       setLoading(false);

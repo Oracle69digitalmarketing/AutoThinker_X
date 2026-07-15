@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Blueprint } from '../types';
 import { firestoreService } from '../services/firestoreService';
 
@@ -6,6 +6,12 @@ export const useHistory = () => {
   const [history, setHistory] = useState<Blueprint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -20,7 +26,6 @@ export const useHistory = () => {
   }, []);
 
   const deleteHistory = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this blueprint?")) return false;
     try {
       await firestoreService.deleteBlueprint(id);
       setHistory(prev => prev.filter(b => b.id !== id));
@@ -35,9 +40,18 @@ export const useHistory = () => {
     fetchHistory();
   };
 
-  const filteredHistory = history.filter(bp => 
-    bp.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredHistory = history.filter(bp => {
+    const searchLower = debouncedSearch.toLowerCase();
+    return (
+      bp.name?.toLowerCase().includes(searchLower) ||
+      bp.pitch?.toLowerCase().includes(searchLower) ||
+      bp.overview?.solution?.toLowerCase().includes(searchLower) ||
+      bp.customers?.icp?.toLowerCase().includes(searchLower) ||
+      bp.competitors?.some(c => c.name?.toLowerCase().includes(searchLower)) ||
+      bp.product?.core_features?.some(f => f.toLowerCase().includes(searchLower)) ||
+      bp.roadmap?.some(r => r.phase?.toLowerCase().includes(searchLower))
+    );
+  });
 
   return {
     history,

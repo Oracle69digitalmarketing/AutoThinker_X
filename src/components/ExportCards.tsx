@@ -6,9 +6,11 @@ import {
 } from 'lucide-react';
 import { Blueprint } from '../types';
 import { ExportService, ExportType } from '../services/export/ExportService';
+import { Modal } from './ui/Modal';
 
 interface ExportCardsProps {
   blueprint: Blueprint;
+  addToast: (type: any, message: string) => void;
 }
 
 interface ExportCardProps {
@@ -17,28 +19,29 @@ interface ExportCardProps {
   status: 'ready' | 'generating' | 'locked';
   onExport: () => void;
   onPreview?: () => void;
-  type?: string;
+  type: ExportType;
   isExporting?: boolean;
 }
 
-export const ExportCards: React.FC<ExportCardsProps> = ({ blueprint }) => {
+export const ExportCards: React.FC<ExportCardsProps> = ({ blueprint, addToast }) => {
   const [exportingType, setExportingType] = useState<ExportType | null>(null);
+  const [previewData, setPreviewData] = useState<{ title: string; type: ExportType } | null>(null);
 
   const handleExport = async (type: ExportType) => {
     setExportingType(type);
+    const toastId = addToast('loading', `Generating ${type}...`);
     try {
-      console.log(`Generating ${type}...`);
       await ExportService.generate(type, blueprint);
+      addToast('success', `${type} downloaded successfully`);
     } catch (error) {
-      console.error(`Export failed for ${type}:`, error);
-      alert(`Failed to generate ${type}. Please try again.`);
+      addToast('error', `Failed to generate ${type}`);
     } finally {
       setExportingType(null);
     }
   };
 
-  const handlePreview = (title: string) => {
-    alert(`Generating interactive preview for ${title}...`);
+  const handlePreview = (title: string, type: ExportType) => {
+    setPreviewData({ title, type });
   };
 
   return (
@@ -63,52 +66,91 @@ export const ExportCards: React.FC<ExportCardsProps> = ({ blueprint }) => {
           title="Business Plan" 
           description="Comprehensive strategic document covering all aspects of the venture (Word)."
           status="ready"
+          type="business-plan"
           isExporting={exportingType === 'business-plan'}
           onExport={() => handleExport("business-plan")}
-          onPreview={() => handlePreview("Business Plan")}
+          onPreview={() => handlePreview("Business Plan", "business-plan")}
         />
         <ExportCard 
           title="Executive Summary" 
           description="High-level brief designed for quick investor review (PDF)."
           status="ready"
+          type="executive-summary"
           isExporting={exportingType === 'executive-summary'}
           onExport={() => handleExport("executive-summary")}
-          onPreview={() => handlePreview("Executive Summary")}
+          onPreview={() => handlePreview("Executive Summary", "executive-summary")}
         />
         <ExportCard 
           title="Pitch Deck" 
           description="Investor-ready editable slide deck based on blueprint logic (PowerPoint)."
           status="ready"
+          type="pitch-deck"
           isExporting={exportingType === 'pitch-deck'}
           onExport={() => handleExport("pitch-deck")}
-          onPreview={() => handlePreview("Pitch Deck")}
-          type="presentation"
+          onPreview={() => handlePreview("Pitch Deck", "pitch-deck")}
         />
         <ExportCard 
           title="Technical Architecture" 
           description="Detailed system design, infrastructure specifications, and AI stack (PDF)."
           status="ready"
+          type="technical-architecture"
           isExporting={exportingType === 'technical-architecture'}
           onExport={() => handleExport("technical-architecture")}
-          onPreview={() => handlePreview("Technical Architecture")}
+          onPreview={() => handlePreview("Technical Architecture", "technical-architecture")}
         />
         <ExportCard 
           title="Marketing Playbook" 
           description="GTM strategy, funnel design, and multi-channel messaging guide (PDF)."
           status="ready"
+          type="marketing-playbook"
           isExporting={exportingType === 'marketing-playbook'}
           onExport={() => handleExport("marketing-playbook")}
-          onPreview={() => handlePreview("Marketing Playbook")}
+          onPreview={() => handlePreview("Marketing Playbook", "marketing-playbook")}
         />
         <ExportCard 
           title="Financial Model" 
           description="Revenue projections, cost structure, and P&L analysis (Excel)."
           status="ready"
+          type="financial-model"
           isExporting={exportingType === 'financial-model'}
           onExport={() => handleExport("financial-model")}
-          onPreview={() => handlePreview("Financial Model")}
+          onPreview={() => handlePreview("Financial Model", "financial-model")}
         />
       </div>
+
+      <Modal
+        isOpen={!!previewData}
+        onClose={() => setPreviewData(null)}
+        title={`${previewData?.title} Preview`}
+        description="Review document structure and metadata before final export."
+        confirmLabel="Download File"
+        onConfirm={() => {
+          if (previewData) handleExport(previewData.type);
+          setPreviewData(null);
+        }}
+      >
+        <div className="space-y-6">
+          <div className="p-6 bg-slate-800/30 rounded-2xl border border-slate-700/50 space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">Target Model</span>
+              <span className="text-xs text-indigo-400 font-black">Claude 3.5 Sonnet</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">Estimated Size</span>
+              <span className="text-xs text-white font-bold">2.4 MB</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">Page Count</span>
+              <span className="text-xs text-white font-bold">~14 Pages</span>
+            </div>
+          </div>
+          <div className="aspect-video bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-center relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+             <FileText size={48} className="text-slate-800 group-hover:text-indigo-500/20 transition-all group-hover:scale-110 duration-500" />
+             <p className="absolute bottom-4 text-[10px] text-slate-600 font-bold uppercase tracking-[0.3em]">Neural Layout Preview</p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
