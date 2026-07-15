@@ -5,17 +5,19 @@ import {
   Activity, Zap, Shield
 } from 'lucide-react';
 
+import { AgentStatus } from '../types';
+
 interface SidebarProps {
   view: string;
   setView: (view: any) => void;
-  onlineAgents: string[];
+  onlineAgents: AgentStatus[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, onlineAgents }) => {
   const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'generate', label: 'Gen Engine', icon: <Sparkles size={20} /> },
-    { id: 'dashboard', label: 'Blueprints', icon: <LayoutDashboard size={20} /> },
-    { id: 'history', label: 'Agent Logs', icon: <History size={20} /> },
+    { id: 'blueprints', label: 'Blueprints', icon: <History size={20} /> },
     { id: 'exports', label: 'Exports', icon: <FileText size={20} /> },
   ];
 
@@ -25,10 +27,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, onlineAgents })
   ];
 
   return (
-    <aside className="w-72 bg-slate-900/50 backdrop-blur-xl border-r border-slate-800 flex flex-col p-6 space-y-8 z-50 print:hidden">
+    <aside 
+      className="w-72 bg-slate-900/50 backdrop-blur-xl border-r border-slate-800 flex flex-col p-6 space-y-8 z-50 print:hidden"
+      role="navigation"
+      aria-label="Main Sidebar"
+    >
       <div className="flex items-center gap-3 px-2">
         <div className="bg-indigo-600 p-1.5 rounded-xl shadow-lg shadow-indigo-600/20">
-          <img src="/logo.png" alt="AutoThinker X" className="w-8 h-8 object-contain brightness-0 invert" />
+          <img src="/logo.png" alt="AutoThinker X Logo" className="w-8 h-8 object-contain brightness-0 invert" />
         </div>
         <div>
           <h1 className="font-black text-xl tracking-tighter text-white leading-none">AutoThinker X</h1>
@@ -36,12 +42,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, onlineAgents })
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1" aria-label="Primary Navigation">
         <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest px-4 mb-2">Main Menu</p>
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setView(item.id)}
+            aria-current={view === item.id ? 'page' : undefined}
+            aria-label={`Navigate to ${item.label}`}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
               view === item.id || (view === 'view' && item.id === 'generate')
                 ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-600/20 shadow-sm' 
@@ -63,10 +71,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, onlineAgents })
           </div>
         </div>
         <div className="space-y-2.5">
-          {['Venture Architect', 'Market Intelligence', 'Customer Intelligence', 'Asset Specialist'].map((agent) => (
-            <div key={agent} className="flex items-center justify-between text-[11px]">
-              <span className="text-slate-400 font-medium">{agent}</span>
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
+          {onlineAgents.slice(0, 5).map((agent) => (
+            <div key={agent.id} className="flex items-center justify-between text-[11px]">
+              <div className="flex flex-col">
+                <span className="text-slate-400 font-medium">{agent.name}</span>
+                <span className="text-[8px] text-slate-600 font-medium truncate w-32">{agent.status === 'running' ? agent.currentTask : agent.lastTask}</span>
+              </div>
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                agent.status === 'running' ? 'bg-indigo-500 animate-pulse' : 
+                agent.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 
+                agent.status === 'failed' ? 'bg-red-500' : 'bg-slate-700'
+              }`}></div>
             </div>
           ))}
         </div>

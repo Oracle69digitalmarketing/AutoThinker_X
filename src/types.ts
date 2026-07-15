@@ -1,7 +1,24 @@
 export interface AgentLog {
   agent: string;
-  status: 'completed' | 'pending' | 'failed';
+  status: 'completed' | 'pending' | 'failed' | 'running';
   duration: string;
+  task?: string;
+  model?: string;
+  timestamp?: number;
+}
+
+export interface AgentStatus {
+  id: string;
+  name: string;
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  currentTask: string;
+  duration: string;
+  lastTask: string;
+  avgResponseTime: string;
+  health: 'healthy' | 'degraded' | 'down';
+  queueLength: number;
+  model: string;
+  successRate: string;
 }
 
 export interface VentureDetails {
@@ -104,6 +121,7 @@ export interface FundingOpportunity {
   sources?: any[];
   funding_ask?: string;
   use_of_funds?: string[];
+  link?: string;
 }
 
 export interface RoadmapPhase {

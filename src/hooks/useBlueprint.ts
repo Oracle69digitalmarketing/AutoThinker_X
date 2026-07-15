@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Blueprint } from '../types';
 import { apiService } from '../services/apiService';
 import { firestoreService } from '../services/firestoreService';
+import { AgentService } from '../services/AgentService';
 
 export const useBlueprint = (setHistory: React.Dispatch<React.SetStateAction<Blueprint[]>>) => {
   const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
@@ -13,26 +14,60 @@ export const useBlueprint = (setHistory: React.Dispatch<React.SetStateAction<Blu
   const generateBlueprint = async (idea: string, branding: string, complexity: string) => {
     if (!idea.trim()) return;
     setLoading(true);
+    AgentService.resetAll();
+    
     const steps = [
-      'Orchestrating Agent Network...',
-      'Researching Market Dynamics...',
-      'Analyzing Customer Archetypes...',
-      'Synthesizing Technical Stack...',
-      'Building Financial Projections...',
-      'Generating GTM Strategy...',
-      'Finalizing Venture Blueprint...'
+      { id: 'va', task: 'Orchestrating Agent Network...', label: 'Orchestrating Agent Network...' },
+      { id: 'mi', task: 'Researching Market Dynamics...', label: 'Researching Market Dynamics...' },
+      { id: 'ci', task: 'Analyzing Customer Archetypes...', label: 'Analyzing Customer Archetypes...' },
+      { id: 'tech', task: 'Synthesizing Technical Stack...', label: 'Synthesizing Technical Stack...' },
+      { id: 'fin', task: 'Building Financial Projections...', label: 'Building Financial Projections...' },
+      { id: 'mark', task: 'Generating GTM Strategy...', label: 'Generating GTM Strategy...' },
+      { id: 'va', task: 'Finalizing Venture Blueprint...', label: 'Finalizing Venture Blueprint...' }
     ];
     
     let currentStep = 0;
     const interval = setInterval(() => {
-      setLoadingStep(steps[currentStep]);
+      const step = steps[currentStep];
+      setLoadingStep(step.label);
+      
+      // Update agent live status
+      AgentService.updateAgent(step.id, { 
+        status: 'running', 
+        currentTask: step.task,
+        duration: 'active'
+      });
+      
+      // Complete previous agent
+      if (currentStep > 0) {
+        const prevStep = steps[currentStep - 1];
+        if (prevStep.id !== step.id) {
+          AgentService.updateAgent(prevStep.id, { 
+            status: 'completed', 
+            currentTask: 'Task Finished',
+            lastTask: prevStep.task,
+            duration: '2.4s'
+          });
+        }
+      }
+
       currentStep = (currentStep + 1) % steps.length;
-    }, 3000);
+    }, 2500);
 
     try {
       const newBlueprint = await apiService.generateBlueprint(idea, branding, complexity);
       clearInterval(interval);
       setLoadingStep('Saving to Secure Database...');
+      
+      // Mark all as completed
+      AgentService.getAgents().forEach(a => {
+        AgentService.updateAgent(a.id, { 
+          status: 'completed', 
+          currentTask: 'Idle',
+          lastTask: 'Generation Complete',
+          duration: a.avgResponseTime
+        });
+      });
       
       try {
         const id = await firestoreService.saveBlueprint(newBlueprint);
@@ -41,11 +76,13 @@ export const useBlueprint = (setHistory: React.Dispatch<React.SetStateAction<Blu
         setHistory(prev => [savedBlueprint, ...prev]);
         return savedBlueprint;
       } catch (firestoreError) {
-        // saved but failed to save to history
         return newBlueprint;
       }
     } catch (error: any) {
       clearInterval(interval);
+      AgentService.getAgents().forEach(a => {
+        if (a.status === 'running') AgentService.updateAgent(a.id, { status: 'failed', currentTask: 'Error encountered' });
+      });
       console.error("Generation failed:", error);
       throw error;
     } finally {

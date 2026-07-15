@@ -11,6 +11,7 @@ import { Hero } from './components/Hero';
 import { LoadingPanel } from './components/LoadingPanel';
 import { BlueprintView } from './components/BlueprintView';
 import { ExportCards } from './components/ExportCards';
+import { DashboardView } from './components/views/DashboardView';
 import { SettingsView } from './components/views/SettingsView';
 import { HelpView } from './components/views/HelpView';
 
@@ -20,21 +21,23 @@ import { useHistory } from './hooks/useHistory';
 import { useVoice } from './hooks/useVoice';
 import { useTheme } from './hooks/useTheme';
 import { useSettings } from './hooks/useSettings';
+import { useAgents } from './hooks/useAgents';
 
 // UI Components
 import { ToastContainer, Toast, ToastType } from './components/ui/Toast';
 import { Modal } from './components/ui/Modal';
 
-type ViewMode = 'dashboard' | 'generate' | 'history' | 'view' | 'exports' | 'settings' | 'help';
+type ViewMode = 'dashboard' | 'generate' | 'blueprints' | 'history' | 'view' | 'exports' | 'settings' | 'help';
 
 export default function App() {
-  const [view, setView] = useState<ViewMode>('generate');
+  const [view, setView] = useState<ViewMode>('dashboard');
   const [idea, setIdea] = useState('');
   const [branding, setBranding] = useState<'tech-bold' | 'corporate-clean' | 'playful-modern'>('tech-bold');
   const [complexity, setComplexity] = useState<'low' | 'medium' | 'high'>('medium');
 
   const { theme, toggleTheme } = useTheme();
   const { settings, updateSettings } = useSettings();
+  const { agents } = useAgents();
 
   // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -148,8 +151,9 @@ export default function App() {
 
   const getHeaderTitle = () => {
     switch (view) {
+      case 'dashboard': return 'Enterprise Intelligence';
       case 'generate': return 'Generation Engine';
-      case 'dashboard': return 'Venture Blueprints';
+      case 'blueprints': return 'Venture Blueprints';
       case 'history': return 'Agent Execution Logs';
       case 'view': return blueprint?.name || 'Blueprint Viewer';
       case 'exports': return 'Project Exports';
@@ -161,7 +165,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200 overflow-hidden font-sans selection:bg-indigo-500/30">
-      <Sidebar view={view} setView={setView} onlineAgents={[]} />
+      <Sidebar view={view} setView={setView} onlineAgents={agents} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header 
@@ -188,6 +192,14 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="p-10 max-w-[1600px] mx-auto w-full"
             >
+              {view === 'dashboard' && (
+                <DashboardView 
+                  history={history} 
+                  setView={setView} 
+                  setBlueprint={setBlueprint} 
+                />
+              )}
+
               {view === 'generate' && (
                 <Hero 
                   idea={idea} 
@@ -228,7 +240,7 @@ export default function App() {
                 <HelpView />
               )}
 
-              {(view === 'dashboard' || view === 'history' || view === 'exports') && (
+              {(view === 'blueprints' || view === 'history' || view === 'exports') && (
                  <motion.div 
                    key="history-view"
                    initial={{ opacity: 0 }}
@@ -239,10 +251,10 @@ export default function App() {
                     <div className="flex justify-between items-center">
                        <div>
                           <h2 className="text-4xl font-black text-white tracking-tight">
-                             {view === 'dashboard' ? 'Active Blueprints' : view === 'history' ? 'Agent Execution History' : 'Project Exports'}
+                             {view === 'blueprints' ? 'Active Blueprints' : view === 'history' ? 'Agent Execution History' : 'Project Exports'}
                           </h2>
                           <p className="text-slate-500 mt-1 font-medium">
-                             {view === 'dashboard' ? 'Manage your generated venture architectures.' : view === 'history' ? 'Review autonomous agent execution traces.' : 'Download and manage your venture assets.'}
+                             {view === 'blueprints' ? 'Manage your generated venture architectures.' : view === 'history' ? 'Review autonomous agent execution traces.' : 'Download and manage your venture assets.'}
                           </p>
                        </div>
                        <button 
